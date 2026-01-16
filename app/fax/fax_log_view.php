@@ -17,23 +17,19 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2020
+	Portions created by the Initial Developer are Copyright (C) 2008-2024
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	require_once "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('fax_log_view')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('fax_log_view')) {
 		echo "access denied";
 		exit;
 	}
@@ -51,7 +47,7 @@
 	}
 
 //process the http post data by submitted action
-	if ($_POST['action'] != '' && is_uuid($fax_log_uuid) && is_uuid($fax_uuid)) {
+	if (!empty($_POST['action']) && !empty($fax_log_uuid) && is_uuid($fax_log_uuid) && is_uuid($fax_uuid)) {
 		$array[0]['checked'] = 'true';
 		$array[0]['uuid'] = $fax_log_uuid;
 
@@ -70,13 +66,12 @@
 	}
 
 //pre-populate the form
-	if (is_uuid($fax_log_uuid) && is_uuid($fax_uuid)) {
+	if (!empty($fax_log_uuid) && is_uuid($fax_log_uuid) && !empty($fax_uuid) && is_uuid($fax_uuid)) {
 		$sql = "select * from v_fax_logs ";
 		$sql .= "where domain_uuid = :domain_uuid ";
 		$sql .= "and fax_log_uuid = :fax_log_uuid ";
 		$parameters['domain_uuid'] = $domain_uuid;
 		$parameters['fax_log_uuid'] = $fax_log_uuid;
-		$database = new database;
 		$row = $database->select($sql, $parameters, 'row');
 		if (is_array($row) && @sizeof($row) != 0) {
 			$fax_log_uuid = $row["fax_log_uuid"];
@@ -116,9 +111,9 @@
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'><b>".$text['title-fax_log']."</b></div>\n";
 	echo "	<div class='actions'>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','link'=>'fax_logs.php?id='.urlencode($fax_uuid)]);
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','link'=>'fax_logs.php?id='.urlencode($fax_uuid)]);
 	if (permission_exists('fax_log_delete')) {
-		echo button::create(['type'=>'button','label'=>$text['button-delete'],'icon'=>$_SESSION['theme']['button_icon_delete'],'name'=>'btn_delete','style'=>'margin-left: 15px;','onclick'=>"modal_open('modal-delete','btn_delete');"]);
+		echo button::create(['type'=>'button','label'=>$text['button-delete'],'icon'=>$settings->get('theme', 'button_icon_delete'),'name'=>'btn_delete','style'=>'margin-left: 15px;','onclick'=>"modal_open('modal-delete','btn_delete');"]);
 	}
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
@@ -128,6 +123,7 @@
 		echo modal::create(['id'=>'modal-delete','type'=>'delete','actions'=>button::create(['type'=>'submit','label'=>$text['button-continue'],'icon'=>'check','id'=>'btn_delete','style'=>'float: right; margin-left: 15px;','collapse'=>'never','name'=>'action','value'=>'delete','onclick'=>"modal_close();"])]);
 	}
 
+	echo "<div class='card'>\n";
 	echo "<table width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
 
 	echo "<tr>\n";
@@ -221,6 +217,7 @@
 	echo "</tr>\n";
 
 	echo "</table>";
+	echo "</div>\n";
 	echo "<br /><br />";
 
 	echo "<input type='hidden' name='id' value='".escape($fax_log_uuid)."'>\n";

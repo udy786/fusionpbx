@@ -25,8 +25,16 @@
 */
 
 	if (!function_exists('save_ivr_menu_xml')) {
+		/**
+		 * Saves IVR menu XML configuration files.
+		 *
+		 * This function deletes all existing dialplan .xml files in the ivr_menus directory,
+		 * then creates new IVR menu XML files based on the database records for the current domain.
+		 *
+		 * @return void
+		 */
 		function save_ivr_menu_xml() {
-			global $domain_uuid;
+			global $domain_uuid, $settings;
 
 			//prepare for dialplan .xml files to be written. delete all dialplan files that are prefixed with dialplan_ and have a file extension of .xml
 			if (count($_SESSION["domains"]) > 1) {
@@ -35,7 +43,7 @@
 			else {
 				$v_needle = 'v_';
 			}
-			if($dh = opendir($_SESSION['switch']['conf']['dir']."/ivr_menus/")) {
+			if($dh = opendir($settings->get('switch', 'conf')."/ivr_menus/")) {
 				$files = Array();
 				while($file = readdir($dh)) {
 					if($file != "." && $file != ".." && $file[0] != '.') {
@@ -44,7 +52,7 @@
 						} else {
 							if (strpos($file, $v_needle) !== false && substr($file,-4) == '.xml') {
 								//echo "file: $file<br />\n";
-								unlink($_SESSION['switch']['conf']['dir']."/ivr_menus/".$file);
+								unlink($settings->get('switch', 'conf')."/ivr_menus/".$file);
 							}
 						}
 					}
@@ -55,7 +63,6 @@
 			$sql = "select * from v_ivr_menus ";
 			$sql .= " where domain_uuid = :domain_uuid ";
 			$parameters['domain_uuid'] = $domain_uuid;
-			$database = new database;
 			$result = $database->select($sql, $parameters, 'all');
 			unset($sql, $parameters);
 
@@ -91,7 +98,7 @@
 
 					//add each IVR menu to the XML config
 						$tmp = "<include>\n";
-						if (strlen($ivr_menu_description) > 0) {
+						if (!empty($ivr_menu_description)) {
 							$tmp .= "	<!-- $ivr_menu_description -->\n";
 						}
 						if (count($_SESSION["domains"]) > 1) {
@@ -109,13 +116,13 @@
 							$tmp .= "		greet-long=\"".$ivr_menu_greet_long."\"\n";
 						}
 						if (stripos($ivr_menu_greet_short, 'mp3') !== false || stripos($ivr_menu_greet_short, 'wav') !== false) {
-							if (strlen($ivr_menu_greet_short) > 0) {
+							if (!empty($ivr_menu_greet_short)) {
 								$tmp .= "		greet-short=\"".$ivr_menu_greet_short."\"\n";
 							}
 						}
 						else {
 							//not found
-							if (strlen($ivr_menu_greet_short) > 0) {
+							if (!empty($ivr_menu_greet_short)) {
 								$tmp .= "		greet-short=\"".$ivr_menu_greet_short."\"\n";
 							}
 						}
@@ -138,10 +145,9 @@
 						$sub_sql .= "order by ivr_menu_option_order asc ";
 						$parameters['ivr_menu_uuid'] = $ivr_menu_uuid;
 						$parameters['domain_uuid'] = $domain_uuid;
-						$database = new database;
 						$sub_result = $database->select($sub_sql, $parameters, 'all');
 						if (is_array($sub_result) && @sizeof($sub_result) != 0) {
-							foreach ($sub_result as &$sub_row) {
+							foreach ($sub_result as $sub_row) {
 								//$ivr_menu_uuid = $sub_row["ivr_menu_uuid"];
 								$ivr_menu_option_digits = $sub_row["ivr_menu_option_digits"];
 								$ivr_menu_option_action = $sub_row["ivr_menu_option_action"];
@@ -149,7 +155,7 @@
 								$ivr_menu_option_description = $sub_row["ivr_menu_option_description"];
 
 								$tmp .= "		<entry action=\"$ivr_menu_option_action\" digits=\"$ivr_menu_option_digits\" param=\"$ivr_menu_option_param\"/>";
-								if (strlen($ivr_menu_option_description) == 0) {
+								if (empty($ivr_menu_option_description)) {
 									$tmp .= "\n";
 								}
 								else {
@@ -159,7 +165,7 @@
 						}
 						unset($sub_sql, $sub_result, $sub_row);
 
-						if ($ivr_menu_direct_dial == "true") {
+						if ($ivr_menu_direct_dial == true) {
 							$tmp .= "		<entry action=\"menu-exec-app\" digits=\"/(^\d{3,6}$)/\" param=\"transfer $1 XML ".$ivr_menu_context."\"/>\n";
 						}
 						$tmp .= "	</menu>\n";
@@ -171,10 +177,10 @@
 
 						//write the file
 							if (count($_SESSION["domains"]) > 1) {
-								$fout = fopen($_SESSION['switch']['conf']['dir']."/ivr_menus/v_".$_SESSION['domains'][$row['domain_uuid']]['domain_name']."_".$ivr_menu_name.".xml","w");
+								$fout = fopen($settings->get('switch', 'conf')."/ivr_menus/v_".$_SESSION['domains'][$row['domain_uuid']]['domain_name']."_".$ivr_menu_name.".xml","w");
 							}
 							else {
-								$fout = fopen($_SESSION['switch']['conf']['dir']."/ivr_menus/v_".$ivr_menu_name.".xml","w");
+								$fout = fopen($settings->get('switch', 'conf')."/ivr_menus/v_".$ivr_menu_name.".xml","w");
 							}
 							fwrite($fout, $tmp);
 							fclose($fout);

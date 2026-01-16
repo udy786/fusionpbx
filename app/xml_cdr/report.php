@@ -25,16 +25,12 @@
         James Rose <james.o.rose@gmail.com>
         Mark J Crane <markjcrane@fusionpbx.com>
 */
-//includes
-	require_once "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('xml_cdr_view')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('xml_cdr_view')) {
 		echo "access denied";
 		exit;
 	}
@@ -133,7 +129,6 @@ for ($y = 0; $y < 4; $y++) {
 		$parameters['domain_uuid'] = $_SESSION['domain_uuid'];
 		$parameters['last_month'] = $last_month;
 		$parameters['this_month'] = $this_month;
-		$database = new database;
 		$result = $database->select($sql, $parameters, 'all');
 		unset($sql);
 		$max = sizeof($result) - 1;

@@ -24,17 +24,13 @@
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	require_once "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 	require_once "resources/paging.php";
 
 //check permissions
-	if (permission_exists('destination_export')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('destination_export')) {
 		echo "access denied";
 		exit;
 	}
@@ -65,6 +61,8 @@
 	$available_columns[] = 'destination_type_voice';
 	$available_columns[] = 'destination_type_fax';
 	$available_columns[] = 'destination_type_text';
+	$available_columns[] = 'destination_conditions';
+	$available_columns[] = 'destination_actions';
 	$available_columns[] = 'destination_app';
 	$available_columns[] = 'destination_data';
 	$available_columns[] = 'destination_alternate_app';
@@ -75,6 +73,17 @@
 	$available_columns[] = 'destination_order';
 
 //define the functions
+	/**
+	 * Converts an associative or numerical array into a CSV string.
+	 *
+	 * This function takes an array and returns its contents as a properly formatted
+	 * CSV string. If the input array is empty, it will return null.
+	 *
+	 * @param array $array  The array to be converted into a CSV string.
+	 *                      It can be either an associative or numerical array.
+	 *
+	 * @return string A CSV string representation of the input array, or null if the array is empty.
+	 */
 	function array2csv(array &$array) {
 		if (count($array) == 0) {
 			return null;
@@ -89,6 +98,17 @@
 		return ob_get_clean();
 	}
 
+	/**
+	 * Sends HTTP headers for a file download.
+	 *
+	 * This function sends the necessary HTTP headers to force the browser to download
+	 * a file instead of displaying it in the browser. The filename specified should be
+	 * a path to the file on the server, not a URL.
+	 *
+	 * @param string $filename The name and path to the file that will be downloaded by the client.
+	 *
+	 * @return void This function does not return anything.
+	 */
 	function download_send_headers($filename) {
 		// disable caching
 		$now = gmdate("D, d M Y H:i:s");
@@ -107,7 +127,7 @@
 	}
 
 //get the extensions from the database and send them as output
-	if (is_array($_REQUEST["column_group"]) && @sizeof($_REQUEST["column_group"]) != 0) {
+	if (!empty($_REQUEST["column_group"]) && is_array($_REQUEST["column_group"]) && @sizeof($_REQUEST["column_group"]) != 0) {
 
 		//validate the token
 			$token = new token;
@@ -127,7 +147,6 @@
 			$sql = "select ".implode(', ', $selected_columns)." from v_destinations ";
 			$sql .= "where domain_uuid = :domain_uuid ";
 			$parameters['domain_uuid'] = $domain_uuid;
-			$database = new database;
 			$destinations = $database->select($sql, $parameters, 'all');
 			unset($sql, $parameters, $selected_columns);
 
@@ -147,23 +166,23 @@
 
 //show the content
 	echo "<form method='post' name='frm' id='frm'>\n";
-
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'><b>".$text['header-destination_export']."</b></div>\n";
 	echo "	<div class='actions'>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','link'=>'destinations.php']);
-	echo button::create(['type'=>'submit','label'=>$text['button-export'],'icon'=>$_SESSION['theme']['button_icon_export'],'id'=>'btn_save','style'=>'margin-left: 15px;']);
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','link'=>'destinations.php']);
+	echo button::create(['type'=>'submit','label'=>$text['button-export'],'icon'=>$settings->get('theme', 'button_icon_export'),'id'=>'btn_save','style'=>'margin-left: 15px;']);
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
-	
+
 	echo $text['description-destination_export'];
 	echo "<br /><br />\n";
 
+	echo "<div class='card'>\n";
 	echo "<table class='list'>\n";
 	echo "<tr class='list-header'>\n";
 	echo "	<th class='checkbox'>\n";
-	echo "		<input type='checkbox' id='checkbox_all' name='checkbox_all' onclick='list_all_toggle();' ".($available_columns ?: "style='visibility: hidden;'").">\n";
+	echo "		<input type='checkbox' id='checkbox_all' name='checkbox_all' onclick='list_all_toggle();' ".(empty($available_columns) ? "style='visibility: hidden;'" : null).">\n";
 	echo "	</th>\n";
 	echo "	<th>".$text['label-column_name']."</th>\n";
 	echo "</tr>\n";
@@ -172,7 +191,7 @@
 		$x = 0;
 		foreach ($available_columns as $column_name) {
 			$list_row_onclick = "if (!this.checked) { document.getElementById('checkbox_all').checked = false; }";
-			echo "<tr class='list-row' href='".$list_row_url."'>\n";
+			echo "<tr class='list-row' href='".($list_row_url ?? null)."'>\n";
 			echo "	<td class='checkbox'>\n";
 			echo "		<input type='checkbox' name='column_group[]' id='checkbox_".$x."' value=\"".$column_name."\" onclick=\"".$list_row_onclick."\">\n";
 			echo "	</td>\n";
@@ -183,6 +202,7 @@
 	}
 
 	echo "</table>\n";
+	echo "</div>\n";
 	echo "<br />\n";
 	echo "<input type='hidden' name='".$token['name']."' value='".$token['hash']."'>\n";
 	echo "</form>\n";

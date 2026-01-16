@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2015
+	Portions created by the Initial Developer are Copyright (C) 2015-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -25,24 +25,32 @@
 	James Rose <james.o.rose@gmail.com>
 */
 
-include "root.php";
-require_once "resources/require.php";
+//includes files
+require_once dirname(__DIR__, 2) . "/resources/require.php";
 require_once "resources/functions/object_to_array.php";
 require_once "resources/functions/parse_message.php";
-require_once "resources/classes/text.php";
 
 //get accounts to monitor
-$sql = "select * from v_fax ";
+$sql = "select d.domain_name, f.* ";
+$sql .= "from v_fax as f, v_domains as d ";
 $sql .= "where fax_email_connection_host <> '' ";
+$sql .= "and f.domain_uuid = d.domain_uuid ";
 $sql .= "and fax_email_connection_host is not null ";
-$database = new database;
+$sql .= "and fax_email_outbound_subject_tag is not null ";
 $result = $database->select($sql, null, 'all');
 unset($sql);
 
+/**
+ * Converts an array to a map where each unique value in the array is mapped to true.
+ *
+ * @param array &$arr The input array
+ *
+ * @return array|false A map where each unique value in the array is mapped to true, or false if the input array is empty.
+ */
 function arr_to_map(&$arr){
-	if(is_array($arr)){
+	if (!empty($arr)){
 		$map = Array();
-		foreach($arr as &$val){
+		foreach ($arr as $val){
 			$map[$val] = true;
 		}
 		return $map;
@@ -50,36 +58,14 @@ function arr_to_map(&$arr){
 	return false;
 }
 
-if (is_array($result) && @sizeof($result) != 0) {
-
-	//load default settings
-	$default_settings = load_default_settings();
-
-	//get event socket connection parameters
-	$sql = "select event_socket_ip_address, event_socket_port, event_socket_password from v_settings";
-	$database = new database;
-	$row = $database->select($sql, null, 'row');
-	$event_socket['ip_address'] = $row['event_socket_ip_address'];
-	$event_socket['port'] = $row['event_socket_port'];
-	$event_socket['password'] = $row['event_socket_password'];
-	unset($sql, $row);
-
-	$fax_send_mode_default = $_SESSION['fax']['send_mode']['text'];
-	if(strlen($fax_send_mode_default) == 0){
-		$fax_send_mode_default = 'direct';
-	}
-	$fax_cover_font_default = $_SESSION['fax']['cover_font']['text'];
-
-	$fax_allowed_extension_default = arr_to_map($_SESSION['fax']['allowed_extension']);
-	if($fax_allowed_extension_default == false){
-		$tmp = array('.pdf', '.tiff', '.tif');
-		$fax_allowed_extension_default = arr_to_map($tmp);
-	}
+if (!empty($result) && @sizeof($result) != 0) {
 
 	foreach ($result as $row) {
+
 		//get fax server and account connection details
 		$fax_uuid = $row["fax_uuid"];
 		$domain_uuid = $row["domain_uuid"];
+		$domain_name = $row["domain_name"];
 		$fax_extension = $row["fax_extension"];
 		$fax_email = $row["fax_email"];
 		$fax_pin_number = $row["fax_pin_number"];
@@ -95,49 +81,37 @@ if (is_array($result) && @sizeof($result) != 0) {
 		$fax_email_connection_mailbox = $row["fax_email_connection_mailbox"];
 		$fax_email_outbound_subject_tag = $row["fax_email_outbound_subject_tag"];
 		$fax_email_outbound_authorized_senders = strtolower($row["fax_email_outbound_authorized_senders"]);
-		$fax_send_greeting = $row["fax_send_greeting"];
 		$fax_accountcode = $row["accountcode"];
+		$fax_toll_allow = $row["fax_toll_allow"];
 
-		//load default settings, then domain settings over top
-		unset($_SESSION);
-		$_SESSION = $default_settings;
-		load_domain_settings($domain_uuid);
-
-		$fax_send_mode = $_SESSION['fax']['send_mode']['text'];
-		if(strlen($fax_send_mode) == 0){
-			$fax_send_mode = $fax_send_mode_default;
+		//send the domain name to the command line output
+		if (!empty($fax_email_connection_host) && !empty($fax_email_connection_username)) {
+			echo "Domain Name: ".$domain_name."\n";
 		}
 
-		$fax_cover_font = $_SESSION['fax']['cover_font']['text'];
-		if(strlen($fax_cover_font) == 0){
+		//get the cover font
+		$fax_cover_font_default =$settings->get('fax','cover_font');
+		$fax_cover_font = $settings->get('fax','cover_font');
+		if(empty($fax_cover_font)) {
 			$fax_cover_font = $fax_cover_font_default;
 		}
-
-		$fax_allowed_extension = arr_to_map($_SESSION['fax']['allowed_extension']);
-		if($fax_allowed_extension == false){
+		
+		//get the allowed file extensions
+		$fax_allowed_extension_default = arr_to_map($settings->get('fax','allowed_extension'));
+		if($fax_allowed_extension_default == false){
+			$tmp = array('.pdf', '.tiff', '.tif');
+			$fax_allowed_extension_default = arr_to_map($tmp);
+		}
+		$fax_allowed_extension = arr_to_map($settings->get('fax','allowed_extension'));
+		if($fax_allowed_extension == false) {
 			$fax_allowed_extension = $fax_allowed_extension_default;
 		}
 
-		//load event socket connection parameters
-		$_SESSION['event_socket_ip_address'] = $event_socket['ip_address'];
-		$_SESSION['event_socket_port'] = $event_socket['port'];
-		$_SESSION['event_socket_password'] = $event_socket['password'];
-
-		//get domain name, set local and session variables
-		$sql = "select domain_name from v_domains where domain_uuid = :domain_uuid ";
-		$parameters['domain_uuid'] = $domain_uuid;
-		$database = new database;
-		$row = $database->select($sql, $parameters, 'row');
-		$domain_name = $row['domain_name'];
-		$_SESSION['domain_name'] = $row['domain_name'];
-		$_SESSION['domain_uuid'] = $domain_uuid;
-		unset($sql, $parameters, $row);
-
 		//set needed variables
-		$fax_page_size = $_SESSION['fax']['page_size']['text'];
-		$fax_resolution = $_SESSION['fax']['resolution']['text'];
-		$fax_header = $_SESSION['fax']['cover_header']['text'];
-		$fax_footer = $_SESSION['fax']['cover_footer']['text'];
+		$fax_page_size = $settings->get('fax','page_size');
+		$fax_resolution = $settings->get('fax','resolution');
+		$fax_header = $settings->get('fax','cover_header');
+		$fax_footer = $settings->get('fax','cover_footer');
 		$fax_sender = $fax_caller_id_name;
 
 		//open account connection
@@ -150,7 +124,11 @@ if (is_array($result) && @sizeof($result) != 0) {
 			continue; // try next account
 		}
 
-		//get emails
+		//send more log information
+		echo "   Connection: ".$fax_email_connection."\n";
+		echo "   Required Subject: [".$fax_email_outbound_subject_tag."]\n";
+
+		//get emails from imap
 		if ($emails = imap_search($connection, "SUBJECT \"[".$fax_email_outbound_subject_tag."]\"", SE_UID)) {
 
 			//get authorized sender(s)
@@ -161,19 +139,37 @@ if (is_array($result) && @sizeof($result) != 0) {
 				$authorized_senders[] = $fax_email_outbound_authorized_senders;
 			}
 
-			sort($emails); // oldest first
+			//sort the emails as oldest first
+			sort($emails); 
+			
+			//send information to the console
+			echo "   Number of Emails: ".count($emails)."\n";
+
+			//process each email
 			foreach ($emails as $email_id) {
+				//get email meta data
 				$metadata = object_to_array(imap_fetch_overview($connection, $email_id, FT_UID));
+				//print_r($metadata);
 
 				//format from address
-				$tmp = object_to_array(imap_rfc822_parse_adrlist($metadata[0]['from'], null));
-				$metadata[0]['from'] = strtolower($tmp[0]['mailbox']."@".$tmp[0]['host']);
-
+				//$tmp = object_to_array(imap_rfc822_parse_adrlist($metadata[0]['from'], null));
+				//$metadata[0]['from'] = strtolower($tmp[0]['mailbox']."@".$tmp[0]['host']);
+				//$sender_email = $metadata[0]['from'];
+	
+				//get the sender email address	
+				if (strstr($metadata[0]['from'], '<') && strstr($metadata[0]['from'], '>')) {
+					$sender_email = preg_match('/^.*<(.+)>/', $metadata[0]['from'], $matches) ? strtolower($matches[1]) : '';
+				}
+				else {
+					$sender_email = strtolower($metadata[0]['from']);
+				}
+ 
 				//check sender
-				$sender_email = $metadata[0]['from'];
 				$sender_domain = explode('@', $sender_email)[1];
 				$sender_authorized = in_array($sender_email, $authorized_senders) || in_array($sender_domain, $authorized_senders) ? true : false;
 				if ($sender_authorized) {
+					//debug info
+					echo "   Sender Authorized: ".$sender_email."\n";
 
 					//add multi-lingual support
 					$language = new text;
@@ -203,18 +199,18 @@ if (is_array($result) && @sizeof($result) != 0) {
 					$fax_message = '';
 
 					//Debug print
-					print('attachments:' . "\n");
-					foreach($message['attachments'] as &$attachment){
-						print(' - ' . $attachment['type'] . ' - ' . $attachment['name'] . ': ' . $attachment['size'] . ' disposition: ' . $attachment['disposition'] . "\n");
+					print('   Attachments:' . "\n");
+					foreach ($message['attachments'] as $attachment){
+						print('   ' . $attachment['type'] . ' - ' . $attachment['name'] . ': ' . $attachment['size'] . ' disposition: ' . $attachment['disposition'] . "\n");
 					}
-					print('messages:' . "\n");
-					foreach($message['messages'] as &$msg){
-						print(' - ' . $msg['type'] . ' - ' . $msg['size'] . "\n");
+					print('   Messages:' . "\n");
+					foreach ($message['messages'] as $msg){
+						print('   ' . $msg['type'] . ' - ' . $msg['size'] . "\n");
 						// print($msg['data']);
 						// print("\n--------------------------------------------------------\n");
 					}
 
-					foreach($message['messages'] as &$msg){
+					foreach ($message['messages'] as $msg){
 						if(($msg['size'] > 0)) {
 							$fax_message = $msg['data'];
 							break;
@@ -228,60 +224,65 @@ if (is_array($result) && @sizeof($result) != 0) {
 					}
 
 					// set fax directory (used for pdf creation - cover and/or attachments)
-					$fax_dir = $_SESSION['switch']['storage']['dir'].'/fax'.(($domain_name != '') ? '/'.$domain_name : null);
+					$fax_dir = $settings->get('switch','storage').'/fax'.(($domain_name != '') ? '/'.$domain_name : null);
 
 					//handle attachments (if any)
 					$emailed_files = Array();
 					$attachments = $message['attachments'];
 					if (sizeof($attachments) > 0) {
-						foreach ($attachments as &$attachment) {
+						foreach ($attachments as $attachment) {
+							//get the fax file extension
 							$fax_file_extension = pathinfo($attachment['name'], PATHINFO_EXTENSION);
 
 							//block unknown files
-								if ($fax_file_extension == '') {continue; }
+							if ($fax_file_extension == '') {continue; }
+
 							//block unauthorized files
-								if (!$fax_allowed_extension['.' . $fax_file_extension]) { continue; } 
+							if (!$fax_allowed_extension['.' . $fax_file_extension]) { continue; }
+
 							//support only attachments
-								//if($attachment['disposition'] != 'attachment'){ continue; } 
+							//if($attachment['disposition'] != 'attachment'){ continue; } 
 
 							//store attachment in local fax temp folder
-								$uuid_filename = uuid();
-								$local_filepath = $fax_dir.'/'.$fax_extension.'/temp/'.$uuid_filename."-".$attachment['name'];
-								file_put_contents($local_filepath, $attachment['data']);
+							$uuid_filename = uuid();
+							$local_filepath = $fax_dir.'/'.$fax_extension.'/temp/'.$uuid_filename."-".$attachment['name'];
+							file_put_contents($local_filepath, $attachment['data']);
 
 							//load files array with attachments
-								$emailed_files['error'][] = 0;
-								$emailed_files['size'][] = $attachment['size'];
-								$emailed_files['tmp_name'][] = $uuid_filename."-".$attachment['name'];
-								$emailed_files['name'][] = $uuid_filename."-".$attachment['name'];
+							$emailed_files['error'][] = 0;
+							$emailed_files['size'][] = $attachment['size'];
+							$emailed_files['tmp_name'][] = $uuid_filename."-".$attachment['name'];
+							$emailed_files['name'][] = $uuid_filename."-".$attachment['name'];
 						}
 					}
 
 					//Debug print
-					print('***********************' . "\n");
-					print('fax message:' . "\n");
-					print(' - length: ' . strlen($fax_message) . "\n");
-					print('fax files [' . sizeof($emailed_files['name']) . ']:' . "\n");
-					for($i = 0; $i < sizeof($emailed_files['name']);++$i){
-						print(' - ' . $emailed_files['name'][$i] . ' - ' . $emailed_files['size'][$i] . "\n");
+					print('   FAX Message:' . "\n");
+					print('   Message Length: ' . strlen($fax_message) . "\n");
+					if (isset($emailed_files['name'])) {
+						print('   FAX Files [' . sizeof($emailed_files['name']) . ']:' . "\n");
+						for($i = 0; $i < sizeof($emailed_files['name']);++$i){
+							print('   ' . $emailed_files['name'][$i] . ' - ' . $emailed_files['size'][$i] . "\n");
+						}
 					}
-					print('***********************' . "\n");
 
 					//send fax
 					$cwd = getcwd();
-					$included = true;
-					require("fax_send.php");
+					require "fax_send.php";
 					if($cwd){
 						chdir($cwd);
 					}
 
 					//reset variables
 					unset($fax_numbers);
-				}
 
-				//delete email
-				if (imap_delete($connection, $email_id, FT_UID)) {
-					imap_expunge($connection);
+					//delete email
+					if (imap_delete($connection, $email_id, FT_UID)) {
+						imap_expunge($connection);
+					}
+				}
+				else {
+					//unauthorized sender
 				}
 			}
 			unset($authorized_senders);
@@ -289,88 +290,9 @@ if (is_array($result) && @sizeof($result) != 0) {
 
 		//close account connection
 		imap_close($connection);
-	}
-}
 
-//functions used above
-function load_default_settings() {
-	$sql = "select * from v_default_settings ";
-	$sql .= "where default_setting_enabled = 'true' ";
-	$database = new database;
-	$result = $database->select($sql, null, 'all');
-	//load the settings into an array
-	if (is_array($result) && @sizeof($result) != 0) {
-		foreach ($result as $row) {
-			$name = $row['default_setting_name'];
-			$category = $row['default_setting_category'];
-			$subcategory = $row['default_setting_subcategory'];
-			if (strlen($subcategory) == 0) {
-				if ($name == "array") {
-					$settings[$category][] = $row['default_setting_value'];
-				}
-				else {
-					$settings[$category][$name] = $row['default_setting_value'];
-				}
-			}
-			else {
-				if ($name == "array") {
-					$settings[$category][$subcategory][] = $row['default_setting_value'];
-				}
-				else {
-					$settings[$category][$subcategory][$name] = $row['default_setting_value'];
-					$settings[$category][$subcategory][$name] = $row['default_setting_value'];
-				}
-			}
-		}
-	}
-	unset($sql, $parameters, $result, $row);
-	return $settings;
-}
-
-function load_domain_settings($domain_uuid) {
-	if (is_uuid($domain_uuid)) {
-		$sql = "select * from v_domain_settings ";
-		$sql .= "where domain_uuid = :domain_uuid ";
-		$sql .= "and domain_setting_enabled = 'true' ";
-		$sql .= "order by domain_setting_order asc ";
-		$parameters['domain_uuid'] = $domain_uuid;
-		$database = new database;
-		$result = $database->select($sql, $parameters, 'all');
-		if (is_array($result) && @sizeof($result) != 0) {
-			//unset the arrays that domains are overriding
-				foreach ($result as $row) {
-					$name = $row['domain_setting_name'];
-					$category = $row['domain_setting_category'];
-					$subcategory = $row['domain_setting_subcategory'];
-					if ($name == "array") {
-						unset($_SESSION[$category][$subcategory]);
-					}
-				}
-			//set the settings as a session
-				foreach ($result as $row) {
-					$name = $row['domain_setting_name'];
-					$category = $row['domain_setting_category'];
-					$subcategory = $row['domain_setting_subcategory'];
-					if (strlen($subcategory) == 0) {
-						//$$category[$name] = $row['domain_setting_value'];
-						if ($name == "array") {
-							$_SESSION[$category][] = $row['domain_setting_value'];
-						}
-						else {
-							$_SESSION[$category][$name] = $row['domain_setting_value'];
-						}
-					}
-					else {
-						//$$category[$subcategory][$name] = $row['domain_setting_value'];
-						if ($name == "array") {
-							$_SESSION[$category][$subcategory][] = $row['domain_setting_value'];
-						}
-						else {
-							$_SESSION[$category][$subcategory][$name] = $row['domain_setting_value'];
-						}
-					}
-				}
-		}
+		//add a line feed
+		echo "\n";
 	}
 }
 

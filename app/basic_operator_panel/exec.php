@@ -2,7 +2,7 @@
 /* $Id$ */
 /*
 	v_exec.php
-	Copyright (C) 2008-2019 Mark J Crane
+	Copyright (C) 2008-2023 Mark J Crane
 	All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
@@ -27,16 +27,12 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-//includes
-	include "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('operator_panel_view')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('operator_panel_view')) {
 		echo "access denied";
 		exit;
 	}
@@ -52,16 +48,16 @@
 //process the requests
 if (count($_GET) > 0) {
 	//set the variables
-		$switch_cmd = trim($_GET["cmd"]);
-		$action = trim($_GET["action"]);
-		$data = trim($_GET["data"]);
-		$direction = trim($_GET["direction"]);
+		$switch_cmd = trim($_GET["cmd"] ?? '');
+		$action = trim($_GET["action"] ?? '');
+		$data = trim($_GET["data"] ?? '');
+		$direction = trim($_GET["direction"] ?? '');
 
 	//setup the event socket connection
-		$fp = event_socket_create($_SESSION['event_socket_ip_address'], $_SESSION['event_socket_port'], $_SESSION['event_socket_password']);
+		$esl = event_socket::create();
 
 	//allow specific commands
-		if (strlen($switch_cmd) > 0) {
+		if (!empty($switch_cmd)) {
 			$api_cmd = '';
 			$uuid_pattern = '/[^-A-Fa-f0-9]/';
 			$num_pattern = '/[^-A-Za-z0-9()*#]/';
@@ -70,14 +66,17 @@ if (count($_GET) > 0) {
 				$source = preg_replace($num_pattern,'',$_GET['source']);
 				$destination = preg_replace($num_pattern,'',$_GET['destination']);
 				$api_cmd = 'bgapi originate {sip_auto_answer=true,origination_caller_id_number=' . $source . ',sip_h_Call-Info=_undef_}user/' . $source . '@' . $_SESSION['domain_name'] . ' ' . $destination . ' XML ' . trim($_SESSION['user_context']);
-			} elseif ($switch_cmd == 'uuid_record') {
+			}
+			else if ($switch_cmd == 'uuid_record') {
 				$uuid = preg_replace($uuid_pattern,'',$_GET['uuid']);
-				$api_cmd = 'uuid_record ' . $uuid . ' start ' . $_SESSION['switch']['recordings']['dir'] . '/' . $_SESSION['domain_name'] . '/archive/' . date('Y/M/d') . '/' . $uuid . '.wav';
-			} elseif ($switch_cmd == 'uuid_transfer') {
+				$api_cmd = 'uuid_record ' . $uuid . ' start ' . $settings->get('switch', 'recordings') . '/' . $_SESSION['domain_name'] . '/archive/' . date('Y/M/d') . '/' . $uuid . '.wav';
+			}
+			else if ($switch_cmd == 'uuid_transfer') {
 				$uuid = preg_replace($uuid_pattern,'',$_GET['uuid']);
 				$destination = preg_replace($num_pattern,'',$_GET['destination']);
 				$api_cmd = 'uuid_transfer ' . $uuid . ' ' . $destination . ' XML ' . trim($_SESSION['user_context']);
-			} elseif ($switch_cmd == 'uuid_eavesdrop') {
+			}
+			else if ($switch_cmd == 'uuid_eavesdrop') {
 				$chan_uuid = preg_replace($uuid_pattern,'',$_GET['chan_uuid']);
 				$ext = preg_replace($num_pattern,'',$_GET['ext']);
 				$destination = preg_replace($num_pattern,'',$_GET['destination']);
@@ -86,16 +85,18 @@ if (count($_GET) > 0) {
 				$text = $language->get();
 
 				$api_cmd = 'bgapi originate {origination_caller_id_name=' . $text['label-eavesdrop'] . ',origination_caller_id_number=' . $ext . '}user/' . $destination . '@' . $_SESSION['domain_name'] . ' &eavesdrop(' . $chan_uuid . ')';
-			} elseif ($switch_cmd == 'uuid_kill') {
+			}
+			else if ($switch_cmd == 'uuid_kill') {
 				$call_id = preg_replace($uuid_pattern,'',$_GET['call_id']);
 				$api_cmd = 'uuid_kill ' . $call_id;
-			} else {
+			}
+			else {
 				echo 'access denied';
 				return;
 			}
 
 			//run the command
-			$switch_result = event_socket_request($fp, 'api '.$api_cmd);
+			$switch_result = event_socket::api($api_cmd);
 
 			/*
 			//record stop
@@ -104,13 +105,13 @@ if (count($_GET) > 0) {
 					$x=0;
 					while (true) {
 						if ($x > 0) {
-							$dest_file = $_SESSION['switch']['recordings']['dir']."/archive/".date("Y")."/".date("M")."/".date("d")."/".$_GET["uuid"]."_".$x.".wav";
+							$dest_file = $settings->get('switch', 'recordings')."/archive/".date("Y")."/".date("M")."/".date("d")."/".$_GET["uuid"]."_".$x.".wav";
 						}
 						else {
-							$dest_file = $_SESSION['switch']['recordings']['dir']."/archive/".date("Y")."/".date("M")."/".date("d")."/".$_GET["uuid"].".wav";
+							$dest_file = $settings->get('switch', 'recordings')."/archive/".date("Y")."/".date("M")."/".date("d")."/".$_GET["uuid"].".wav";
 						}
 						if (!file_exists($dest_file)) {
-							rename($_SESSION['switch']['recordings']['dir']."/archive/".date("Y")."/".date("M")."/".date("d")."/".$_GET["uuid"].".wav", $dest_file);
+							rename($settings->get('switch', 'recordings')."/archive/".date("Y")."/".date("M")."/".date("d")."/".$_GET["uuid"].".wav", $dest_file);
 							break;
 						}
 						$x++;

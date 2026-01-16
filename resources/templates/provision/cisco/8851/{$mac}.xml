@@ -103,7 +103,7 @@
 <!-- RTP Parameters -->
 <RTP_Port_Min ua="na">16384</RTP_Port_Min>
 <RTP_Port_Max ua="na">16482</RTP_Port_Max>
-<RTP_Packet_Size ua="na">0.030</RTP_Packet_Size>
+<RTP_Packet_Size ua="na">0.020</RTP_Packet_Size>
 <Max_RTP_ICMP_Err ua="na">0</Max_RTP_ICMP_Err>
 <RTCP_Tx_Interval ua="na">0</RTCP_Tx_Interval>
 <!-- SDP Payload Types -->
@@ -130,20 +130,20 @@
 <Insert_VIA_rport ua="na">{$spa_insert_via_rport}</Insert_VIA_rport>
 <Substitute_VIA_Addr ua="na">No</Substitute_VIA_Addr>
 <Send_Resp_To_Src_Port ua="na">No</Send_Resp_To_Src_Port>
-<STUN_Enable ua="na">No</STUN_Enable>
+<STUN_Enable ua="na">{if isset($stun_server)}Yes{else}No{/if}</STUN_Enable>
 <STUN_Test_Enable ua="na">No</STUN_Test_Enable>
-<STUN_Server ua="na"/>
+<STUN_Server ua="na">{$stun_server}</STUN_Server>
 <EXT_IP ua="na"/>
 <EXT_RTP_Port_Min ua="na">0</EXT_RTP_Port_Min>
-<NAT_Keep_Alive_Intvl ua="na">15</NAT_Keep_Alive_Intvl>
+<NAT_Keep_Alive_Intvl ua="na">90</NAT_Keep_Alive_Intvl>
 <Redirect_Keep_Alive ua="na">No</Redirect_Keep_Alive>
 <!-- Configuration Profile -->
 <Provision_Enable ua="na">Yes</Provision_Enable>
 <Resync_On_Reset ua="na">Yes</Resync_On_Reset>
-<Resync_Random_Delay ua="na">2</Resync_Random_Delay>
+<Resync_Random_Delay ua="na">1</Resync_Random_Delay>
 <Resync_At__HHmm_ ua="na"/>
 <Resync_At_Random_Delay ua="na">600</Resync_At_Random_Delay>
-<Resync_Periodic ua="na">3600</Resync_Periodic>
+<Resync_Periodic ua="na">0</Resync_Periodic>
 <Resync_Error_Retry_Delay ua="na">3600</Resync_Error_Retry_Delay>
 <Forced_Resync_Delay ua="na">14400</Forced_Resync_Delay>
 <Resync_From_SIP ua="na">Yes</Resync_From_SIP>
@@ -174,7 +174,7 @@
 <Log_Upgrade_Success_Msg ua="na">$PN $MAC -- Successful upgrade $SCHEME://$SERVIP:$PORT$PATH -- $ERR</Log_Upgrade_Success_Msg>
 <Log_Upgrade_Failure_Msg ua="na">$PN $MAC -- Upgrade failed: $ERR</Log_Upgrade_Failure_Msg>
 <!-- CA Settings -->
-<Custom_CA_Rule ua="na"/>
+<Custom_CA_Rule ua="na">{$cisco_custom_ca_rule}</Custom_CA_Rule>
 <!-- HTTP Settings -->
 <HTTP_User_Agent_Name ua="na">$VERSION ($MA)</HTTP_User_Agent_Name>
 <!-- Problem Report Tool -->
@@ -256,10 +256,10 @@
 <Secure_One_Call_Act_Code ua="na">*18</Secure_One_Call_Act_Code>
 <Secure_One_Call_Deact_Code ua="na">*19</Secure_One_Call_Deact_Code>
 <Paging_Code ua="na">*96</Paging_Code>
-<Call_Park_Code ua="na">*68</Call_Park_Code>
-<Call_Pickup_Code ua="na">{$voicemail_number}</Call_Pickup_Code>
-<Call_Unpark_Code ua="na">*88</Call_Unpark_Code>
-<Group_Call_Pickup_Code ua="na">*98</Group_Call_Pickup_Code>
+<Call_Park_Code ua="na">#68</Call_Park_Code>
+<Call_Pickup_Code ua="na">#97</Call_Pickup_Code>
+<Call_Unpark_Code ua="na">#88</Call_Unpark_Code>
+<Group_Call_Pickup_Code ua="na">#98</Group_Call_Pickup_Code>
 <Referral_Services_Codes ua="na"/>
 <Feature_Dial_Services_Codes ua="na"/>
 <!-- Vertical Service Announcement Codes -->
@@ -306,7 +306,7 @@
 {foreach $keys["line"] as $row}
 {if $row.device_key_category == "line"}
 <!-- Phone/Line_Key_{$row.device_key_id} -->
-<Extension_{$row.device_key_id}_ group="Phone/Line_Key_{$row.device_key_id}">{$row.device_key_line}</Extension_{$row.device_key_id}_> <!-- options: 1/2/3/4/5/6/7/8/9/10/11/12/Disabled -->
+<Extension_{$row.device_key_id}_ group="Phone/Line_Key_{$row.device_key_id}">{if $row.device_key_type == "disabled"}Disabled{else}{$row.device_key_line}{/if}</Extension_{$row.device_key_id}_> <!-- options: 1/2/3/4/5/6/7/8/9/10/11/12/Disabled -->
 <Short_Name_{$row.device_key_id}_ group="Phone/Line_Key_{$row.device_key_id}">{$row.device_key_label}</Short_Name_{$row.device_key_id}_>
 <Share_Call_Appearance_{$row.device_key_id}_ group="Phone/Line_Key_{$row.device_key_id}">{if $row.device_key_type == "shared"}shared{else}private{/if}</Share_Call_Appearance_{$row.device_key_id}_> <!-- options: private/shared -->
 <Extended_Function_{$row.device_key_id}_ group="Phone/Line_Key_{$row.device_key_id}">{$row.device_key_value}</Extended_Function_{$row.device_key_id}_>
@@ -398,7 +398,7 @@
 <Off_Hook_Key_List ua="na">option;redial;cancel;dir;cfwd;dnd;lcr;unpark;pickup;gpickup;</Off_Hook_Key_List>
 <Dialing_Input_Key_List ua="na">option|1;call|2;delchar|3;cancel|4;</Dialing_Input_Key_List>
 <Progressing_Key_List ua="na">endcall|2;</Progressing_Key_List>
-<Connected_Key_List ua="na">hold|1;endcall|2;conf|3;xfer|4;crdstart;crdstop;bxfer;confLx;xferLx;park;phold;flash;dnd;</Connected_Key_List>
+<Connected_Key_List ua="na">bxfer|1;xfer|2;endcall|3;conf|4;hold;crdstart;crdstop;confLx;xferLx;park;phold;flash;dnd;</Connected_Key_List>
 <Start-Xfer_Key_List ua="na">hold|1;endcall|2;xfer|4;crdstart;crdstop;dnd;</Start-Xfer_Key_List>
 <Start-Conf_Key_List ua="na">hold|1;endcall|2;conf|3;crdstart;crdstop;dnd;</Start-Conf_Key_List>
 <Conferencing_Key_List ua="na">hold|1;endcall|2;join|4;crdstart;crdstop;dnd;</Conferencing_Key_List>
@@ -474,8 +474,12 @@
 <Enable_Broadsoft_Hoteling_1_ ua="na">No</Enable_Broadsoft_Hoteling_1_>
 <Hoteling_Subscription_Expires_1_ ua="na">3600</Hoteling_Subscription_Expires_1_>
 <!-- Proxy and Registration -->
-<Proxy_1_ ua="na">{$domain_name}</Proxy_1_>
+<Proxy_1_ ua="na">{$account.1.server_address}</Proxy_1_>
+{if isset($account.1.outbound_proxy_primary)}
 <Outbound_Proxy_1_ ua="na">{$account.1.outbound_proxy_primary}</Outbound_Proxy_1_>
+{else}
+<Outbound_Proxy_1_ ua="na">{$account.1.server_address}</Outbound_Proxy_1_>
+{/if}
 <Alternate_Proxy_1_ ua="na"/>
 <Alternate_Outbound_Proxy_1_ ua="na"/>
 <Use_OB_Proxy_In_Dialog_1_ ua="na">Yes</Use_OB_Proxy_In_Dialog_1_>
@@ -494,8 +498,8 @@
 <Display_Name_1_ ua="na">{$account.1.display_name}</Display_Name_1_>
 <User_ID_1_ ua="na">{$account.1.user_id}</User_ID_1_>
 <Password_1_ ua="na">{$account.1.password}</Password_1_>
-<Auth_ID_1_ ua="na"/>
-<Reversed_Auth_Realm_1_ ua="na"/>
+<Auth_ID_1_ ua="na">{$account.1.user_id}</Auth_ID_1_>
+<Reversed_Auth_Realm_1_ ua="na">{$account.1.server_address}</Reversed_Auth_Realm_1_>
 <SIP_URI_1_ ua="na"/>
 <!-- Audio Configuration -->
 <Preferred_Codec_1_ ua="na">G711u</Preferred_Codec_1_>
@@ -515,7 +519,7 @@
 <!-- Dial Plan -->
 <Dial_Plan_1_ ua="na">{$spa_dial_plan}</Dial_Plan_1_>
 <Caller_ID_Map_1_ ua="na"/>
-<Enable_URI_Dialing_1_ ua="na">No</Enable_URI_Dialing_1_>
+<Enable_URI_Dialing_1_ ua="na">Yes</Enable_URI_Dialing_1_>
 <Emergency_Number_1_ ua="na"/>
 <!-- General -->
 <Line_Enable_2_ ua="na">Yes</Line_Enable_2_>
@@ -588,8 +592,8 @@
 <Display_Name_2_ ua="na">{$account.2.display_name}</Display_Name_2_>
 <User_ID_2_ ua="na">{$account.2.user_id}</User_ID_2_>
 <Password_2_ ua="na">{$account.2.password}</Password_2_>
-<Auth_ID_2_ ua="na"/>
-<Reversed_Auth_Realm_2_ ua="na"/>
+<Auth_ID_2_ ua="na">{$account.2.user_id}</Auth_ID_2_>
+<Reversed_Auth_Realm_2_ ua="na">{$account.2.server_address}</Reversed_Auth_Realm_2_>
 <SIP_URI_2_ ua="na"/>
 <!-- Audio Configuration -->
 <Preferred_Codec_2_ ua="na">G711u</Preferred_Codec_2_>
@@ -609,7 +613,7 @@
 <!-- Dial Plan -->
 <Dial_Plan_2_ ua="na">{$spa_dial_plan}</Dial_Plan_2_>
 <Caller_ID_Map_2_ ua="na"/>
-<Enable_URI_Dialing_2_ ua="na">No</Enable_URI_Dialing_2_>
+<Enable_URI_Dialing_2_ ua="na">Yes</Enable_URI_Dialing_2_>
 <Emergency_Number_2_ ua="na"/>
 <!-- General -->
 <Line_Enable_3_ ua="na">Yes</Line_Enable_3_>
@@ -682,8 +686,8 @@
 <Display_Name_3_ ua="na">{$account.3.display_name}</Display_Name_3_>
 <User_ID_3_ ua="na">{$account.3.user_id}</User_ID_3_>
 <Password_3_ ua="na">{$account.3.password}</Password_3_>
-<Auth_ID_3_ ua="na"/>
-<Reversed_Auth_Realm_3_ ua="na"/>
+<Auth_ID_3_ ua="na">{$account.3.user_id}</Auth_ID_3_>
+<Reversed_Auth_Realm_3_ ua="na">{$account.3.server_address}</Reversed_Auth_Realm_3_>
 <SIP_URI_3_ ua="na"/>
 <!-- Audio Configuration -->
 <Preferred_Codec_3_ ua="na">G711u</Preferred_Codec_3_>
@@ -703,7 +707,7 @@
 <!-- Dial Plan -->
 <Dial_Plan_3_ ua="na">{$spa_dial_plan}</Dial_Plan_3_>
 <Caller_ID_Map_3_ ua="na"/>
-<Enable_URI_Dialing_3_ ua="na">No</Enable_URI_Dialing_3_>
+<Enable_URI_Dialing_3_ ua="na">Yes</Enable_URI_Dialing_3_>
 <Emergency_Number_3_ ua="na"/>
 <!-- General -->
 <Line_Enable_4_ ua="na">Yes</Line_Enable_4_>
@@ -776,9 +780,8 @@
 <Display_Name_4_ ua="na">{$account.4.display_name}</Display_Name_4_>
 <User_ID_4_ ua="na">{$account.4.user_id}</User_ID_4_>
 <Password_4_ ua="na">{$account.4.password}</Password_4_>
-
-<Auth_ID_4_ ua="na"/>
-<Reversed_Auth_Realm_4_ ua="na"/>
+<Auth_ID_4_ ua="na">{$account.4.user_id}</Auth_ID_4_>
+<Reversed_Auth_Realm_4_ ua="na">{$account.4.server_address}</Reversed_Auth_Realm_4_>
 <SIP_URI_4_ ua="na"/>
 <!-- Audio Configuration -->
 <Preferred_Codec_4_ ua="na">G711u</Preferred_Codec_4_>
@@ -798,7 +801,7 @@
 <!-- Dial Plan -->
 <Dial_Plan_4_ ua="na">{$spa_dial_plan}</Dial_Plan_4_>
 <Caller_ID_Map_4_ ua="na"/>
-<Enable_URI_Dialing_4_ ua="na">No</Enable_URI_Dialing_4_>
+<Enable_URI_Dialing_4_ ua="na">Yes</Enable_URI_Dialing_4_>
 <Emergency_Number_4_ ua="na"/>
 <!-- General -->
 <Line_Enable_5_ ua="na">Yes</Line_Enable_5_>
@@ -871,8 +874,8 @@
 <Display_Name_5_ ua="na">{$account.5.display_name}</Display_Name_5_>
 <User_ID_5_ ua="na">{$account.5.user_id}</User_ID_5_>
 <Password_5_ ua="na">{$account.5.user_password}</Password_5_>
-<Auth_ID_5_ ua="na"/>
-<Reversed_Auth_Realm_5_ ua="na"/>
+<Auth_ID_5_ ua="na">{$account.5.user_id}</Auth_ID_5_>
+<Reversed_Auth_Realm_5_ ua="na">{$account.5.server_address}</Reversed_Auth_Realm_5_>
 <SIP_URI_5_ ua="na"/>
 <!-- Audio Configuration -->
 <Preferred_Codec_5_ ua="na">G711u</Preferred_Codec_5_>
@@ -892,7 +895,7 @@
 <!-- Dial Plan -->
 <Dial_Plan_5_ ua="na">{$spa_dial_plan}</Dial_Plan_5_>
 <Caller_ID_Map_5_ ua="na"/>
-<Enable_URI_Dialing_5_ ua="na">No</Enable_URI_Dialing_5_>
+<Enable_URI_Dialing_5_ ua="na">Yes</Enable_URI_Dialing_5_>
 <Emergency_Number_5_ ua="na"/>
 <!-- General -->
 <Line_Enable_6_ ua="na">Yes</Line_Enable_6_>
@@ -965,8 +968,8 @@
 <Display_Name_6_ ua="na">{$account.6.display_name}</Display_Name_6_>
 <User_ID_6_ ua="na">{$account.6.user_id}</User_ID_6_>
 <Password_6_ ua="na">{$account.6.password}</Password_6_>
-<Auth_ID_6_ ua="na"/>
-<Reversed_Auth_Realm_6_ ua="na"/>
+<Auth_ID_6_ ua="na">{$account.6.user_id}</Auth_ID_6_>
+<Reversed_Auth_Realm_6_ ua="na">{$account.6.server_address}</Reversed_Auth_Realm_6_>
 <SIP_URI_6_ ua="na"/>
 <!-- Audio Configuration -->
 <Preferred_Codec_6_ ua="na">G711u</Preferred_Codec_6_>
@@ -986,7 +989,7 @@
 <!-- Dial Plan -->
 <Dial_Plan_6_ ua="na">{$spa_dial_plan}</Dial_Plan_6_>
 <Caller_ID_Map_6_ ua="na"/>
-<Enable_URI_Dialing_6_ ua="na">No</Enable_URI_Dialing_6_>
+<Enable_URI_Dialing_6_ ua="na">Yes</Enable_URI_Dialing_6_>
 <Emergency_Number_6_ ua="na"/>
 <!-- General -->
 <Line_Enable_7_ ua="na">Yes</Line_Enable_7_>
@@ -1058,8 +1061,8 @@
 <Display_Name_7_ ua="na">{$account.7.display_name}</Display_Name_7_>
 <User_ID_7_ ua="na">{$account.7.user_id}</User_ID_7_>
 <Password_7_ ua="na">{$account.7.password}</Password_7_>
-<Auth_ID_7_ ua="na"/>
-<Reversed_Auth_Realm_7_ ua="na"/>
+<Auth_ID_7_ ua="na">{$account.7.user_id}</Auth_ID_7_>
+<Reversed_Auth_Realm_7_ ua="na">{$account.7.server_address}</Reversed_Auth_Realm_7_>
 <SIP_URI_7_ ua="na"/>
 <!-- Audio Configuration -->
 <Preferred_Codec_7_ ua="na">G711u</Preferred_Codec_7_>
@@ -1079,7 +1082,7 @@
 <!-- Dial Plan -->
 <Dial_Plan_7_ ua="na">{$spa_dial_plan}</Dial_Plan_7_>
 <Caller_ID_Map_7_ ua="na"/>
-<Enable_URI_Dialing_7_ ua="na">No</Enable_URI_Dialing_7_>
+<Enable_URI_Dialing_7_ ua="na">Yes</Enable_URI_Dialing_7_>
 <Emergency_Number_7_ ua="na"/>
 <!-- General -->
 <Line_Enable_8_ ua="na">Yes</Line_Enable_8_>
@@ -1152,8 +1155,8 @@
 <Display_Name_8_ ua="na">{$account.8.display_name}</Display_Name_8_>
 <User_ID_8_ ua="na">{$account.8.user_id}</User_ID_8_>
 <Password_8_ ua="na">{$account.8.password}</Password_8_>
-<Auth_ID_8_ ua="na"/>
-<Reversed_Auth_Realm_8_ ua="na"/>
+<Auth_ID_8_ ua="na">{$account.8.user_id}</Auth_ID_8_>
+<Reversed_Auth_Realm_8_ ua="na">{$account.8.server_address}</Reversed_Auth_Realm_8_>
 <SIP_URI_8_ ua="na"/>
 <!-- Audio Configuration -->
 <Preferred_Codec_8_ ua="na">G711u</Preferred_Codec_8_>
@@ -1173,7 +1176,7 @@
 <!-- Dial Plan -->
 <Dial_Plan_8_ ua="na">{$spa_dial_plan}</Dial_Plan_8_>
 <Caller_ID_Map_8_ ua="na"/>
-<Enable_URI_Dialing_8_ ua="na">No</Enable_URI_Dialing_8_>
+<Enable_URI_Dialing_8_ ua="na">Yes</Enable_URI_Dialing_8_>
 <Emergency_Number_8_ ua="na"/>
 <!-- General -->
 <Line_Enable_9_ ua="na">Yes</Line_Enable_9_>
@@ -1246,8 +1249,8 @@
 <Display_Name_9_ ua="na">{$account.9.display_name}</Display_Name_9_>
 <User_ID_9_ ua="na">{$account.9.user_id}</User_ID_9_>
 <Password_9_ ua="na">{$account.9.password}</Password_9_>
-<Auth_ID_9_ ua="na"/>
-<Reversed_Auth_Realm_9_ ua="na"/>
+<Auth_ID_9_ ua="na">{$account.9.user_id}</Auth_ID_9_>
+<Reversed_Auth_Realm_9_ ua="na">{$account.9.server_address}</Reversed_Auth_Realm_9_>
 <SIP_URI_9_ ua="na"/>
 <!-- Audio Configuration -->
 <Preferred_Codec_9_ ua="na">G711u</Preferred_Codec_9_>
@@ -1267,7 +1270,7 @@
 <!-- Dial Plan -->
 <Dial_Plan_9_ ua="na">{$spa_dial_plan}</Dial_Plan_9_>
 <Caller_ID_Map_9_ ua="na"/>
-<Enable_URI_Dialing_9_ ua="na">No</Enable_URI_Dialing_9_>
+<Enable_URI_Dialing_9_ ua="na">Yes</Enable_URI_Dialing_9_>
 <Emergency_Number_9_ ua="na"/>
 <!-- General -->
 <Line_Enable_10_ ua="na">Yes</Line_Enable_10_>
@@ -1340,8 +1343,8 @@
 <Display_Name_10_ ua="na">{$account.10.display_name}</Display_Name_10_>
 <User_ID_10_ ua="na">{$account.10.user_id}</User_ID_10_>
 <Password_10_ ua="na">{$account.10.password}</Password_10_>
-<Auth_ID_10_ ua="na"/>
-<Reversed_Auth_Realm_10_ ua="na"/>
+<Auth_ID_10_ ua="na">{$account.10.user_id}</Auth_ID_10_>
+<Reversed_Auth_Realm_10_ ua="na">{$account.10.server_address}</Reversed_Auth_Realm_10_>
 <SIP_URI_10_ ua="na"/>
 <!-- Audio Configuration -->
 <Preferred_Codec_10_ ua="na">G711u</Preferred_Codec_10_>
@@ -1361,7 +1364,7 @@
 <!-- Dial Plan -->
 <Dial_Plan_10_ ua="na">{$spa_dial_plan}</Dial_Plan_10_>
 <Caller_ID_Map_10_ ua="na"/>
-<Enable_URI_Dialing_10_ ua="na">No</Enable_URI_Dialing_10_>
+<Enable_URI_Dialing_10_ ua="na">Yes</Enable_URI_Dialing_10_>
 <Emergency_Number_10_ ua="na"/>
 <!-- Hold Reminder -->
 <Hold_Reminder_Timer ua="rw">0</Hold_Reminder_Timer>
@@ -1438,7 +1441,7 @@
 <!-- General -->
 <Subscribe_Expires ua="na">1800</Subscribe_Expires>
 <Subscribe_Retry_Interval ua="na">30</Subscribe_Retry_Interval>
-<Number_of_Units ua="na">0</Number_of_Units>
+<Number_of_Units ua="na">2</Number_of_Units>
 <Subscribe_Delay ua="na">1</Subscribe_Delay>
 <Server_Type ua="na">Broadsoft</Server_Type>
 <BLF_List_URI ua="na"/>
@@ -1446,23 +1449,20 @@
 <Call_Pickup_Audio_Notification ua="na">No</Call_Pickup_Audio_Notification>
 <Attendant_Console_LCD_Brightness ua="na">12</Attendant_Console_LCD_Brightness>
 <BXfer_To_Starcode_Enable ua="na">No</BXfer_To_Starcode_Enable>
-<BXfer_On_Speed_Dial_Enable ua="na">No</BXfer_On_Speed_Dial_Enable>
+<BXfer_On_Speed_Dial_Enable ua="na">Yes</BXfer_On_Speed_Dial_Enable>
 <BLF_Label_Display_Mode ua="na">Name</BLF_Label_Display_Mode>
 <!-- Unit 1 -->
-{foreach $keys["expansion"] as $row}
-<Unit_1_Key_{$row.device_key_id} group="Attendant_Console/Unit_1">{$row.device_key_value}</Unit_1_Key_{$row.device_key_id}>
-{/foreach}
 {foreach $keys["expansion-1"] as $row}
-<Unit_1_Key_{$row.device_key_id} group="Attendant_Console/Unit_1">{$row.device_key_value}</Unit_1_Key_{$row.device_key_id}>
+<Unit_1_Key_{$row.device_key_id}_ ua="na" um="y">{$row.device_key_value};nme={$row.device_key_label}</Unit_1_Key_{$row.device_key_id}_>
 {/foreach}
-{foreach $keys["expansion-2"] as $row}
-<Unit_2_Key_{$row.device_key_id} group="Attendant_Console/Unit_2">{$row.device_key_value}</Unit_2_Key_{$row.device_key_id}>
-{/foreach}
-
 <!-- Unit 2 -->
-
+{foreach $keys["expansion-2"] as $row}
+<Unit_2_Key_{$row.device_key_id}_ ua="na" um="y">{$row.device_key_value};nme={$row.device_key_label}</Unit_2_Key_{$row.device_key_id}_>
+{/foreach}
 <!-- Unit 3 -->
-
+{foreach $keys["expansion-3"] as $row}
+<Unit_3_Key_{$row.device_key_id}_ ua="na" um="y">{$row.device_key_value};nme={$row.device_key_label}</Unit_3_Key_{$row.device_key_id}_>
+{/foreach}
 <!-- TR-069 -->
 <Enable_TR-069 ua="na">No</Enable_TR-069>
 <ACS_URL ua="na"/>

@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2021
+	Portions created by the Initial Developer are Copyright (C) 2008-2024
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -25,18 +25,14 @@
 	James Rose <james.o.rose@gmail.com>
 */
 
-//includes
-	include "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 	require_once "resources/functions/object_to_array.php";
 	require_once "resources/functions/parse_message.php";
 
 //check permissions
-	if (permission_exists('fax_inbox_view')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('fax_inbox_view')) {
 		echo "access denied";
 		exit;
 	}
@@ -70,7 +66,6 @@
 			$parameters['fax_uuid'] = $fax_uuid;
 			$parameters['user_uuid'] = $_SESSION['user_uuid'];
 		}
-		$database = new database;
 		$row = $database->select($sql, $parameters, 'row');
 		if (is_array($row) && @sizeof($row) != 0) {
 			$fax_name = $row["fax_name"];
@@ -154,7 +149,7 @@
 			if (imap_delete($connection, $email_id, FT_UID)) {
 				if (imap_expunge($connection)) {
 					//clean up local inbox copy
-					$fax_dir = $_SESSION['switch']['storage']['dir'].'/fax/'.$_SESSION['domain_name'];
+					$fax_dir = $settings->get('switch', 'storage').'/fax/'.$_SESSION['domain_name'];
 					@unlink($fax_dir.'/'.$fax_extension.'/inbox/'.$attachment['name']);
 					//redirect user
 					message::add($text['message-delete']);
@@ -203,6 +198,7 @@
 	echo "</table>\n";
 	echo "<br><br>\n";
 
+	echo "<div class='card'>\n";
 	echo "<table width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
 	echo "	<tr>\n";
 	echo "		<th>".$text['label-fax_caller_id_name']."</th>\n";
@@ -244,6 +240,7 @@
 	}
 
 	echo "</table>";
+	echo "</div>\n";
 	echo "<br><br>";
 
 //close the connection

@@ -1,15 +1,35 @@
 <?php
+/*
+	FusionPBX
+	Version: MPL 1.1
 
-//includes
-	require_once "root.php";
-	require_once "resources/require.php";
+	The contents of this file are subject to the Mozilla Public License Version
+	1.1 (the "License"); you may not use this file except in compliance with
+	the License. You may obtain a copy of the License at
+	http://www.mozilla.org/MPL/
+
+	Software distributed under the License is distributed on an "AS IS" basis,
+	WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+	for the specific language governing rights and limitations under the
+	License.
+
+	The Original Code is FusionPBX
+
+	The Initial Developer of the Original Code is
+	Mark J Crane <markjcrane@fusionpbx.com>
+	Portions created by the Initial Developer are Copyright (C) 2018-2025
+	the Initial Developer. All Rights Reserved.
+
+	Contributor(s):
+	Mark J Crane <markjcrane@fusionpbx.com>
+*/
+
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('conference_profile_param_add') || permission_exists('conference_profile_param_edit')) {
-		//access granted
-	}
-	else {
+	if (!(permission_exists('conference_profile_param_add') || permission_exists('conference_profile_param_edit'))) {
 		echo "access denied";
 		exit;
 	}
@@ -18,8 +38,13 @@
 	$language = new text;
 	$text = $language->get();
 
+//set the defaults
+	$profile_param_name = '';
+	$profile_param_value = '';
+	$profile_param_description = '';
+
 //action add or update
-	if (is_uuid($_REQUEST["id"])) {
+	if (!empty($_REQUEST["id"]) && is_uuid($_REQUEST["id"])) {
 		$action = "update";
 		$conference_profile_param_uuid = $_REQUEST["id"];
 	}
@@ -28,12 +53,12 @@
 	}
 
 //set the parent uuid
-	if (is_uuid($_GET["conference_profile_uuid"])) {
+	if (!empty($_GET["conference_profile_uuid"]) && is_uuid($_GET["conference_profile_uuid"])) {
 		$conference_profile_uuid = $_GET["conference_profile_uuid"];
 	}
 
 //get http post variables and set them to php variables
-	if (count($_POST)>0) {
+	if (!empty($_POST)) {
 		$profile_param_name = $_POST["profile_param_name"];
 		$profile_param_value = $_POST["profile_param_value"];
 		$profile_param_enabled = $_POST["profile_param_enabled"];
@@ -41,13 +66,13 @@
 	}
 
 //process the http post if it exists
-	if (count($_POST) > 0 && strlen($_POST["persistformvar"]) == 0) {
-	
+	if (!empty($_POST) && empty($_POST["persistformvar"])) {
+
 		//get the uuid
 			if ($action == "update") {
 				$conference_profile_param_uuid = $_POST["conference_profile_param_uuid"];
 			}
-	
+
 		//validate the token
 			$token = new token;
 			if (!$token->validate($_SERVER['PHP_SELF'])) {
@@ -58,10 +83,10 @@
 
 		//check for all required data
 			$msg = '';
-			if (strlen($profile_param_name) == 0) { $msg .= $text['message-required']." ".$text['label-profile_param_name']."<br>\n"; }
-			if (strlen($profile_param_value) == 0) { $msg .= $text['message-required']." ".$text['label-profile_param_value']."<br>\n"; }
-			if (strlen($profile_param_enabled) == 0) { $msg .= $text['message-required']." ".$text['label-profile_param_enabled']."<br>\n"; }
-			if (strlen($msg) > 0 && strlen($_POST["persistformvar"]) == 0) {
+			if (empty($profile_param_name)) { $msg .= $text['message-required']." ".$text['label-profile_param_name']."<br>\n"; }
+			if (empty($profile_param_value)) { $msg .= $text['message-required']." ".$text['label-profile_param_value']."<br>\n"; }
+			if (empty($profile_param_enabled)) { $msg .= $text['message-required']." ".$text['label-profile_param_enabled']."<br>\n"; }
+			if (!empty($msg) && empty($_POST["persistformvar"])) {
 				$document['title'] = $text['title-conference_profile_param'];
 				require_once "resources/header.php";
 				require_once "resources/persist_form_var.php";
@@ -74,9 +99,9 @@
 				require_once "resources/footer.php";
 				return;
 			}
-	
+
 		//add or update the database
-			if ($_POST["persistformvar"] != "true") {
+			if (empty($_POST["persistformvar"])) {
 
 				$array['conference_profile_params'][0]['conference_profile_uuid'] = $conference_profile_uuid;
 				$array['conference_profile_params'][0]['profile_param_name'] = $profile_param_name;
@@ -88,16 +113,13 @@
 					$array['conference_profile_params'][0]['conference_profile_param_uuid'] = uuid();
 					message::add($text['message-add']);
 				}
-	
+
 				if ($action == "update" && permission_exists('conference_profile_param_edit')) {
 					$array['conference_profile_params'][0]['conference_profile_param_uuid'] = $conference_profile_param_uuid;
 					message::add($text['message-update']);
 				}
 
 				if (is_uuid($array['conference_profile_params'][0]['conference_profile_param_uuid'])) {
-					$database = new database;
-					$database->app_name = 'conference_profiles';
-					$database->app_uuid = 'c33e2c2a-847f-44c1-8c0d-310df5d65ba9';
 					$database->save($array);
 					unset($array);
 				}
@@ -109,14 +131,18 @@
 	}
 
 //pre-populate the form
-	if (count($_GET) > 0 && $_POST["persistformvar"] != "true") {
-		$conference_profile_param_uuid = $_GET["id"];
-		$sql = "select * from v_conference_profile_params ";
+	if (!empty($_GET) && empty($_POST["persistformvar"])) {
+		$conference_profile_param_uuid = $_GET["id"] ?? '';
+		$sql = "select ";
+		$sql .= "profile_param_name, ";
+		$sql .= "profile_param_value, ";
+		$sql .= "profile_param_enabled, ";
+		$sql .= "profile_param_description ";
+		$sql .= "from v_conference_profile_params ";
 		$sql .= "where conference_profile_param_uuid = :conference_profile_param_uuid ";
 		$parameters['conference_profile_param_uuid'] = $conference_profile_param_uuid;
-		$database = new database;
-		$row = $database->select($sql, $parameters, 'row');
-		if (is_array($row) && sizeof($row)) {
+		$row = $database->select($sql, $parameters ?? null, 'row');
+		if (!empty($row)) {
 			$profile_param_name = $row["profile_param_name"];
 			$profile_param_value = $row["profile_param_value"];
 			$profile_param_enabled = $row["profile_param_enabled"];
@@ -124,6 +150,9 @@
 		}
 		unset($sql, $parameters);
 	}
+
+//set the defaults
+	$profile_param_enabled = $profile_param_enabled ?? true;
 
 //create token
 	$object = new token;
@@ -139,12 +168,13 @@
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'><b>".$text['title-conference_profile_param']."</b></div>\n";
 	echo "	<div class='actions'>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','collapse'=>'hide-xs','style'=>'margin-right: 15px;','link'=>'conference_profile_edit.php?id='.urlencode($conference_profile_uuid)]);
-	echo button::create(['type'=>'submit','label'=>$text['button-save'],'icon'=>$_SESSION['theme']['button_icon_save'],'id'=>'btn_save','collapse'=>'hide-xs']);
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','collapse'=>'hide-xs','style'=>'margin-right: 15px;','link'=>'conference_profile_edit.php?id='.urlencode($conference_profile_uuid)]);
+	echo button::create(['type'=>'submit','label'=>$text['button-save'],'icon'=>$settings->get('theme', 'button_icon_save'),'id'=>'btn_save','collapse'=>'hide-xs']);
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
 
+	echo "<div class='card'>\n";
 	echo "<table width='100%'  border='0' cellpadding='0' cellspacing='0'>\n";
 
 	echo "<tr>\n";
@@ -174,10 +204,17 @@
 	echo "	".$text['label-profile_param_enabled']."\n";
 	echo "</td>\n";
 	echo "<td class='vtable' align='left'>\n";
-	echo "	<select class='formfld' name='profile_param_enabled'>\n";
-	echo "		<option value='true'>".$text['label-true']."</option>\n";
-	echo "		<option value='false' ".($profile_param_enabled == "false" ? "selected='selected'" : null).">".$text['label-false']."</option>\n";
-	echo "	</select>\n";
+	if ($input_toggle_style_switch) {
+		echo "	<span class='switch'>\n";
+	}
+	echo "		<select class='formfld' id='profile_param_enabled' name='profile_param_enabled'>\n";
+	echo "			<option value='true' ".($profile_param_enabled == true ? "selected='selected'" : null).">".$text['option-true']."</option>\n";
+	echo "			<option value='false' ".($profile_param_enabled == false ? "selected='selected'" : null).">".$text['option-false']."</option>\n";
+	echo "		</select>\n";
+	if ($input_toggle_style_switch) {
+		echo "		<span class='slider'></span>\n";
+		echo "	</span>\n";
+	}
 	echo "<br />\n";
 	echo $text['description-profile_param_enabled']."\n";
 	echo "</td>\n";
@@ -195,6 +232,7 @@
 	echo "</tr>\n";
 
 	echo "</table>";
+	echo "</div>\n";
 	echo "<br /><br />";
 
 	echo "<input type='hidden' name='conference_profile_uuid' value='".escape($conference_profile_uuid)."'>\n";

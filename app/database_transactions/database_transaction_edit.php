@@ -24,16 +24,12 @@
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	require_once "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('database_transaction_add') || permission_exists('database_transaction_edit')) {
-		//access granted
-	}
-	else {
+	if (!(permission_exists('database_transaction_add') || permission_exists('database_transaction_edit'))) {
 		echo "access denied";
 		exit;
 	}
@@ -42,34 +38,47 @@
 	$language = new text;
 	$text = $language->get();
 
+//set default values
+	$search = '';
+	$action = '';
+	$page = 0;
+	$user_uuid = '';
+	$app_name = '';
+	$app_uuid = '';
+	$domain_name = '';
+	$username = '';
+	$transaction_code = '';
+	$transaction_address = '';
+
 //set the variables
-	if (is_uuid($_GET["id"])) {
+	if (!empty($_GET["id"]) && is_uuid($_GET["id"])) {
 		$database_transaction_uuid = $_GET["id"];
-		$search = $_GET['search'];
-		$page = $_GET['page'];
+		$search = $_GET['search'] ?? '';
+		$page = $_GET['page'] ?? 0;
+		$action = $_GET['action'] ?? '';
 	}
 
 //pre-populate the form
-	if (count($_GET) > 0 && is_uuid($_GET["id"]) && $_POST["persistformvar"] != "true") {
+	if (!empty($_GET["id"]) && empty($_POST["persistformvar"])) {
 
 		$sql = "select ";
 		$sql .= "t.database_transaction_uuid, d.domain_name, u.username, t.user_uuid, t.app_name, t.app_uuid, ";
 		$sql .= "t.transaction_code, t.transaction_address, t.transaction_type, t.transaction_date, ";
 		$sql .= "t.transaction_old, t.transaction_new, t.transaction_result ";
-		$sql .= "from v_database_transactions as t, v_domains as d, v_users as u ";
-		$sql .= "where t.domain_uuid = :domain_uuid ";
+		$sql .= "from v_database_transactions as t ";
+		$sql .= "left outer join v_domains as d using (domain_uuid) ";
+		$sql .= "left outer join v_users as u using (user_uuid) ";
+		$sql .= "where (t.domain_uuid = :domain_uuid or t.domain_uuid is null) ";
 		$sql .= "and t.database_transaction_uuid = :database_transaction_uuid ";
-		$sql .= "and t.user_uuid = u.user_uuid ";
-		$sql .= "and t.domain_uuid = d.domain_uuid ";
 		$parameters['domain_uuid'] = $domain_uuid;
 		$parameters['database_transaction_uuid'] = $database_transaction_uuid;
-		$database = new database;
 		$row = $database->select($sql, $parameters, 'row');
-		if (is_array($row) && @sizeof($row) != 0) {
+
+		if (!empty($row)) {
 			$user_uuid = $row["user_uuid"];
 			$app_name = $row["app_name"];
 			$app_uuid = $row["app_uuid"];
-			$domain_name = $row["domain_name"];
+			$domain_name = $row["domain_name"] ?? $text['label-global'];
 			$username = $row["username"];
 			$transaction_code = $row["transaction_code"];
 			$transaction_address = $row["transaction_address"];
@@ -83,25 +92,22 @@
 	}
 
 //undo the transaction
-	if ($_GET['action'] == 'undo' && ($transaction_type == 'delete' || $transaction_type == 'update')) {
+	if ($action == 'undo' && ($transaction_type == 'delete' || $transaction_type == 'update')) {
 		//get the array
 			$array = json_decode($transaction_old, true);
 
 		//save to the data
-			$database = new database;
-			$database->app_name = $app_name;
-			$database->app_uuid = $app_uuid;
 			$database->save($array);
-			$message = $database->message;
+			//$message = $database->message;
 
 		//redirect the user
 			$_SESSION["message"] = $text['message-update'];
-			header("Location: database_transactions.php?".($search != '' ? "&search=".urlencode($search) : null).($page != '' ? "&page=".urlencode($page) : null));
-	} 
+			header("Location: database_transactions.php?".(!empty($search) ? "&search=".urlencode($search) : null).(!empty($page) ? "&page=".urlencode($page) : null));
+	}
 
 //get the type if not provided
-	if (strlen($transaction_type) == 0) {
-		if ($transaction_old == null || $transaction_old == "null") {
+	if (empty($transaction_type)) {
+		if (empty($transaction_old) || $transaction_old == null || $transaction_old == "null") {
 			$transaction_type = 'add';
 		}
 		else {
@@ -117,15 +123,16 @@
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'><b>".$text['title-database_transaction']."</b></div>\n";
 	echo "	<div class='actions'>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','link'=>'database_transactions.php?'.($search != '' ? "&search=".urlencode($search) : null).(is_numeric($page) ? "&page=".urlencode($page) : null)]);
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','link'=>'database_transactions.php?'.(!empty($search) ? "&search=".urlencode($search) : null).(is_numeric($page) ? "&page=".urlencode($page) : null)]);
 	if ($transaction_type == 'delete' || $transaction_type == 'update') {
-		echo button::create(['type'=>'button','label'=>$text['button-undo'],'icon'=>'undo-alt','id'=>'btn_save','style'=>'margin-left: 15px;','link'=>'database_transaction_edit.php?id='.urlencode($database_transaction_uuid).'&action=undo'.($search != '' ? "&search=".urlencode($search) : null).(is_numeric($page) ? "&page=".urlencode($page) : null)]);
+		echo button::create(['type'=>'button','label'=>$text['button-undo'],'icon'=>'undo-alt','id'=>'btn_save','style'=>'margin-left: 15px;','link'=>'database_transaction_edit.php?id='.urlencode($database_transaction_uuid).'&action=undo'.(!empty($search) ? "&search=".urlencode($search) : null).(is_numeric($page) ? "&page=".urlencode($page) : null)]);
 	}
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
 
-	echo "<table width='400'  border='0' cellpadding='0' cellspacing='0'>\n";
+	echo "<div class='card'>\n";
+	echo "<table width='400' border='0' cellpadding='0' cellspacing='0'>\n";
 
 	echo "<td valign='top'>\n";
 	echo "	<table>\n";
@@ -192,8 +199,10 @@
 
 	echo "</tr>\n";
 	echo "</table>\n";
+	echo "</div>\n";
 
-	if ($_REQUEST["debug"] == "true") {
+	if (!empty($_REQUEST["debug"]) && $_REQUEST["debug"] == "true") {
+		echo "<div class='card'>\n";
 		echo "<table width='50%'  border='0' cellpadding='0' cellspacing='0'>\n";
 		echo "<tr>\n";
 		echo "<th valign='top' align='left' nowrap='nowrap'>\n";
@@ -203,7 +212,7 @@
 		echo "	<textarea name='transaction_old' style='width: 100%; height: 80px;'>".escape($transaction_old)."</textarea>\n";
 		echo "</td>\n";
 		echo "</tr>\n";
-	
+
 		echo "<tr>\n";
 		echo "<th valign='top' align='left' nowrap='nowrap'>\n";
 		echo "	".$text['label-transaction_new']."\n";
@@ -212,7 +221,7 @@
 		echo "	<textarea name='transaction_new' style='width: 100%; height: 80px;'>".escape($transaction_new)."</textarea>\n";
 		echo "</td>\n";
 		echo "</tr>\n";
-	
+
 		echo "<tr>\n";
 		echo "<th valign='top' align='left' nowrap='nowrap'>\n";
 		echo "	".$text['label-transaction_result']."\n";
@@ -222,16 +231,33 @@
 		echo "</td>\n";
 		echo "</tr>\n";
 		echo "</table>";
+		echo "</div>";
 	}
 
 //define the array _difference function
 	//this adds old and new values to the array
+	/**
+	 * Calculates the difference between two arrays.
+	 *
+	 * This function recursively iterates through both input arrays, comparing each key-value pair. If a value in $array2 is not present in $array1,
+	 * it is marked as 'new' in the returned array. If a value in $array1 is not present in $array2, it is also included in the returned array with a marker
+	 * indicating its origin.
+	 *
+	 * The function handles nested arrays by recursively calling itself for matching keys.
+	 *
+	 * @param mixed[] $array1 The first input array to compare.
+	 * @param mixed[] $array2 The second input array to compare.
+	 *
+	 * @return mixed[] An array containing the differences between the two input arrays, with added markers indicating origin.
+	 */
 	function array_difference($array1, $array2) {
 		$array = array();
 		if (is_array($array1)) {
 			foreach ($array1 as $key => $value) {
 				if (is_array($array2[$key])) {
-					$array[$key] = array_difference($array1[$key], $array2[$key]);
+					if (isset($array1[$key]) && isset($array2[$key])) {
+						$array[$key] = array_difference($array1[$key], $array2[$key]);
+					}
 				}
 				else {
 				  	$array[$key]['old'] = $value;
@@ -241,7 +267,9 @@
 		if (is_array($array2)) {
 			foreach ($array2 as $key => $value) {
 				if (is_array($value)) {
-					$array[$key] = array_difference($array1[$key], $array2[$key]);
+					if (isset($array1[$key]) && isset($array2[$key])) {
+						$array[$key] = array_difference($array1[$key], $array2[$key]);
+					}
 				}
 				else {
 					$array[$key]['new'] = $value;
@@ -256,7 +284,7 @@
 
 		//loop through the array
 			foreach ($array as $key => $value) {
-				if (is_array($value) && !isset($value['old']) && !isset($value['new'])) {
+				if (!empty($value) && !isset($value['old']) && !isset($value['new'])) {
 					if (!is_numeric($key)) {
 						//get the table name
 							$_SESSION['name'] = $key;
@@ -269,10 +297,8 @@
 				}
 				else {
 					//set the variables
-						$old = $value['old'];
-						$new = $value['new'];
-						if (is_null($old)) { $old = ''; }
-						if (is_null($new)) { $new = ''; }
+						$old = $value['old'] ?? '';
+						$new = $value['new'] ?? '';
 					//determine if the value has changed
 						if (strval($old) == strval($new) && isset($old)) {
 							$color = "#000000";
@@ -281,7 +307,7 @@
 							$color = "#ff0000";
 						}
 					//set the table header
-						if ($_SESSION['previous_name'] !== $_SESSION['name'] || $_SESSION['previous_row'] !== $_SESSION['row']) {
+						if (!empty($_SESSION['previous_name']) && $_SESSION['previous_name'] !== $_SESSION['name'] || !empty($_SESSION['previous_row']) && $_SESSION['previous_row'] !== $_SESSION['row']) {
 							echo str_replace("<th>name</th>","<th>".$_SESSION['name']."</th>",$_SESSION['table_header']);
 							//echo $_SESSION['table_header'];
 						}
@@ -300,8 +326,8 @@
 	}
 
 //decode the json to arrays
-	$before = json_decode($transaction_old, true);
-	$after = json_decode($transaction_new, true);
+	$before = json_decode($transaction_old ?? '', true);
+	$after = json_decode($transaction_new ?? '', true);
 
 //unset the sessions
 	unset($_SESSION['previous_name']);
@@ -311,23 +337,25 @@
 	if ($transaction_type == "add") {
 
 		//multiple dimensional array into a 2 dimensional array
-		if (is_array($after)) {
+		if (!empty($after)) {
 			$x = 0;
 			foreach ($after as $key => $value) {
 				$id = 0;
 				foreach ($value as $row) {
 					$sub_id = 0;
 					foreach ($row as $sub_key => $val) {
-						if (is_array($val)) {
+						if (!empty($val) && is_array($val)) {
 							foreach ($val as $sub_row) {
-								foreach ($sub_row as $k => $v) {
-									$array[$x]['schema'] = $sub_key;
-									$array[$x]['row'] = $sub_id;
-									$array[$x]['name'] = $k;
-									$array[$x]['value'] = htmlentities($v);
-									$x++;
+								if (!empty($sub_row) && is_array($sub_row)) {
+									foreach ($sub_row as $k => $v) {
+										$array[$x]['schema'] = $sub_key;
+										$array[$x]['row'] = $sub_id;
+										$array[$x]['name'] = $k;
+										$array[$x]['value'] = htmlentities($v ?? '');
+										$x++;
+									}
+									$sub_id++;
 								}
-								$sub_id++;
 							}
 						}
 						else {
@@ -342,9 +370,11 @@
 				}
 			}
 		}
-		echo "<br />\n";
-		echo "<table width='100%'>\n";
-		if (is_array($array)) {
+		if (!empty($array)) {
+			echo "<br />\n";
+			echo "<div class='card'>\n";
+			echo "<table width='100%'>\n";
+			$previous_schema = null;
 			foreach ($array as $row) {
 				if ($row['schema'] !== $previous_schema || $row['row'] !== $previous_row) {
 					echo "<tr><td colspan='4'>&nbsp;</td></tr>\n";
@@ -357,14 +387,15 @@
 				echo "	<td class=\"vtable\" style='color: #000000;'>".escape($row['name'])."</td>\n";
 				echo "	<td class=\"vtable\" style='color: #ff0000;'>".escape($row['value'])."</td>\n";
 				echo "</tr>\n";
-	
+
 				$previous_schema = $row['schema'];
 				$previous_row = $row['row'];
 			}
 			echo "</table>\n";
+			echo "</div>\n";
 		}
 		/*
-		if (is_array($after)) {
+		if (!empty($after)) {
 			//create the table header
 				$array = array_difference(null, $after, 1);
 				$table_header = "<tr><td colspan='5'>&nbsp;</td></tr>\n";
@@ -396,20 +427,23 @@
 				$table_header .= "	<th>new</th>\n";
 				$table_header .= "</tr>\n";
 				$_SESSION['table_header'] = $table_header;
-			
+
 			//show the difference
 				echo "<br />\n";
+				echo "<div class='card'>\n";
 				echo "<table width='100%'>\n";
 				show_difference($array);
 				echo "</table>\n";
+				echo "</div>\n";
 		}
 	}
 
 //show the delete
 	if ($transaction_type == "delete") {
 		echo "<br /><br />\n";
+		echo "<div class='card'>\n";
 		echo "<table width='100%'>\n";
-		if (is_array($before)) {
+		if (!empty($before)) {
 			foreach ($before as $table_name => $rows) {
 				echo "	<tr>\n";
 				echo "		<th>".escape($table_name)."</th><th>&nbsp;</th>\n";
@@ -426,8 +460,9 @@
 				}
 			}
 		}
+		echo "</table>\n";
+		echo "</div>\n";
 	}
-	echo "</table>\n";
 
 //add a few lines at the end
 	echo "<br /><br />\n";

@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2021
+	Portions created by the Initial Developer are Copyright (C) 2008-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -28,17 +28,13 @@
 	Andrew Colin <andrewd.colin@gmail.com>
 */
 
-//includes
-	require_once "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 	require_once "resources/paging.php";
 
 //check permissions
-	if (permission_exists('outbound_route_add')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('outbound_route_add')) {
 		echo "access denied";
 		exit;
 	}
@@ -47,52 +43,73 @@
 	$language = new text;
 	$text = $language->get();
 
-//get the http post values and set theme as php variables
-	if (is_array($_POST) > 0) {
+//initialize the variables
+	$prefix_number = '';
+	$dialplan_description = '';
+	$limit = '';
+	$accountcode = '';
+	$toll_allow = '';
+
+//set the defaults
+	$domain_uuid = $_SESSION['domain_uuid'];
+	$dialplan_context = $_SESSION['domain_name'];
+	$app_uuid = '8c914ec3-9fc0-8ab5-4cda-6c9288bdc9a3';
+	$dialplan_enabled = true;
+
+//get the HTTP POST values and set the theme as PHP variables
+	if (!empty($_POST)) {
 		//set the variables
-			$dialplan_name = $_POST["dialplan_name"];
-			$dialplan_order = $_POST["dialplan_order"];
-			$dialplan_expression = $_POST["dialplan_expression"];
-			$prefix_number = $_POST["prefix_number"];
-			$condition_field_1 = $_POST["condition_field_1"];
-			$condition_expression_1 = $_POST["condition_expression_1"];
-			$condition_field_2 = $_POST["condition_field_2"];
-			$condition_expression_2 = $_POST["condition_expression_2"];
-			$gateway = $_POST["gateway"];
-			$limit = $_POST["limit"];
-			$accountcode = $_POST["accountcode"];
-			$toll_allow = $_POST["toll_allow"];
-			$pin_numbers_enable = $_POST["pin_numbers_enabled"];
-			if (strlen($pin_numbers_enable) == 0) { $pin_numbers_enable = "false"; }
+			$dialplan_name = $_POST["dialplan_name"] ?? '';
+			$dialplan_order = $_POST["dialplan_order"] ?? '';
+			$dialplan_expression = $_POST["dialplan_expression"] ?? '';
+			$prefix_number = $_POST["prefix_number"] ?? '';
+			$condition_field_1 = $_POST["condition_field_1"] ?? '';
+			$condition_expression_1 = $_POST["condition_expression_1"] ?? '';
+			$condition_field_2 = $_POST["condition_field_2"] ?? '';
+			$condition_expression_2 = $_POST["condition_expression_2"] ?? '';
+			$gateway = $_POST["gateway"] ?? '';
+			$limit = $_POST["limit"] ?? '';
+			$accountcode = $_POST["accountcode"] ?? '';
+			$toll_allow = $_POST["toll_allow"] ?? '';
+			$pin_numbers_enable = $_POST["pin_numbers_enabled"] ?? null;
+			$pin_numbers_enable = (empty($pin_numbers_enable) ? 'false' : 'true');
+			$limit_enable = (empty($limit) ? 'false' : 'true');
+
 		//set the default type
 			$gateway_type = 'gateway';
 			$gateway_2_type = 'gateway';
 			$gateway_3_type = 'gateway';
+
 		//set the gateway type to bridge
 			if (strtolower(substr($gateway, 0, 6)) == "bridge") {
 				$gateway_type = 'bridge';
 			}
+
 		//set the type to enum
 			if (strtolower(substr($gateway, 0, 4)) == "enum") {
 				$gateway_type = 'enum';
 			}
+
 		//set the type to freetdm
 			if (strtolower(substr($gateway, 0, 7)) == "freetdm") {
 				$gateway_type = 'freetdm';
 			}
+
 		//set the type to transfer
 			if (strtolower(substr($gateway, 0, 8)) == "transfer") {
 				$gateway_type = 'transfer';
 			}
+
 		//set the type to dingaling
 			if (strtolower(substr($gateway, 0, 4)) == "xmpp") {
 				$gateway_type = 'xmpp';
 			}
+
 		//set the gateway_uuid and gateway_name
 			if ($gateway_type == "gateway") {
 				$gateway_array = explode(":",$gateway);
 				$gateway_uuid = $gateway_array[0];
-				$gateway_name = $gateway_array[1];
+				$gateway_name = $gateway_array[1] ?? null;
 			}
 			else {
 				$gateway_name = '';
@@ -101,28 +118,34 @@
 
 		//set the gateway_2 variable
 			$gateway_2 = $_POST["gateway_2"];
+
 		//set the type to bridge
 			if (strtolower(substr($gateway_2, 0, 6)) == "bridge") {
 				$gateway_2_type = 'bridge';
 			}
+
 		//set type to enum
 			if (strtolower(substr($gateway_2, 0, 4)) == "enum") {
 				$gateway_2_type = 'enum';
 			}
+
 		//set the type to freetdm
 			if (strtolower(substr($gateway_2, 0, 7)) == "freetdm") {
 				$gateway_2_type = 'freetdm';
 			}
+
 		//set the type to transfer
 			if (strtolower(substr($gateway_2, 0, 8)) == "transfer") {
 				$gateway_type = 'transfer';
 			}
+
 		//set the type to dingaling
 			if (strtolower(substr($gateway_2, 0, 4)) == "xmpp") {
 				$gateway_2_type = 'xmpp';
 			}
+
 		//set the gateway_2_id and gateway_2_name
-			if ($gateway_2_type == "gateway" && strlen($_POST["gateway_2"]) > 0) {
+			if ($gateway_2_type == "gateway" && !empty($_POST["gateway_2"])) {
 				$gateway_2_array = explode(":",$gateway_2);
 				$gateway_2_id = $gateway_2_array[0];
 				$gateway_2_name = $gateway_2_array[1];
@@ -134,28 +157,34 @@
 
 		//set the gateway_3 variable
 			$gateway_3 = $_POST["gateway_3"];
+
 		//set the type to bridge
 			if (strtolower(substr($gateway_3, 0, 6)) == "bridge") {
 				$gateway_3_type = 'bridge';
 			}
+
 		//set the type to enum
 			if (strtolower(substr($gateway_3, 0, 4)) == "enum") {
 				$gateway_3_type = 'enum';
 			}
+
 		//set the type to freetdm
 			if (strtolower(substr($gateway_3, 0, 7)) == "freetdm") {
 				$gateway_3_type = 'freetdm';
 			}
+
 		//set the type to dingaling
 			if (strtolower(substr($gateway_3, 0, 4)) == "xmpp") {
 				$gateway_3_type = 'xmpp';
 			}
+
 		//set the type to transfer
 			if (strtolower(substr($gateway_3, 0, 8)) == "transfer") {
 				$gateway_type = 'transfer';
 			}
+
 		//set the gateway_3_id and gateway_3_name
-			if ($gateway_3_type == "gateway" && strlen($_POST["gateway_3"]) > 0) {
+			if ($gateway_3_type == "gateway" && !empty($_POST["gateway_3"])) {
 				$gateway_3_array = explode(":",$gateway_3);
 				$gateway_3_id = $gateway_3_array[0];
 				$gateway_3_name = $gateway_3_array[1];
@@ -164,15 +193,14 @@
 				$gateway_3_id = '';
 				$gateway_3_name = '';
 			}
+
 		//set additional variables
-			$dialplan_enabled = $_POST["dialplan_enabled"];
+			$dialplan_enabled = $_POST["dialplan_enabled"] ?? false;
 			$dialplan_description = $_POST["dialplan_description"];
-		//set default to enabled
-			if (strlen($dialplan_enabled) == 0) { $dialplan_enabled = "true"; }
 	}
 
 //process the http form values
-	if (count($_POST) > 0 && strlen($_POST["persistformvar"]) == 0) {
+	if (count($_POST) > 0 && empty($_POST["persistformvar"])) {
 
 		//validate the token
 			$token = new token;
@@ -183,17 +211,18 @@
 			}
 
 		//check for all required data
-			if (strlen($gateway) == 0) { $msg .= $text['message-provide'].": ".$text['label-gateway-name']."<br>\n"; }
-			//if (strlen($gateway_2) == 0) { $msg .= "Please provide: Alternat 1<br>\n"; }
-			//if (strlen($gateway_3) == 0) { $msg .= "Please provide: Alternat 2<br>\n"; }
-			if (strlen($dialplan_expression) == 0) { $msg .= $text['message-provide'].": ".$text['label-dialplan-expression']."<br>\n"; }
-			//if (strlen($dialplan_name) == 0) { $msg .= "Please provide: Extension Name<br>\n"; }
-			//if (strlen($condition_field_1) == 0) { $msg .= "Please provide: Condition Field<br>\n"; }
-			//if (strlen($condition_expression_1) == 0) { $msg .= "Please provide: Condition Expression<br>\n"; }
-			//if (strlen($limit) == 0) { $msg .= "Please provide: Limit<br>\n"; }
-			//if (strlen($dialplan_enabled) == 0) { $msg .= "Please provide: Enabled True or False<br>\n"; }
-			//if (strlen($description) == 0) { $msg .= "Please provide: Description<br>\n"; }
-			if (strlen($msg) > 0 && strlen($_POST["persistformvar"]) == 0) {
+			$msg = '';
+			if (empty($gateway)) { $msg .= $text['message-provide'].": ".$text['label-gateway-name']."<br>\n"; }
+			//if (empty($gateway_2)) { $msg .= "Please provide: Alternat 1<br>\n"; }
+			//if (empty($gateway_3)) { $msg .= "Please provide: Alternat 2<br>\n"; }
+			if (empty($dialplan_expression)) { $msg .= $text['message-provide'].": ".$text['label-dialplan-expression']."<br>\n"; }
+			//if (empty($dialplan_name)) { $msg .= "Please provide: Extension Name<br>\n"; }
+			//if (empty($condition_field_1)) { $msg .= "Please provide: Condition Field<br>\n"; }
+			//if (empty($condition_expression_1)) { $msg .= "Please provide: Condition Expression<br>\n"; }
+			//if (empty($limit)) { $msg .= "Please provide: Limit<br>\n"; }
+			//if (empty($dialplan_enabled)) { $msg .= "Please provide: Enabled True or False<br>\n"; }
+			//if (empty($description)) { $msg .= "Please provide: Description<br>\n"; }
+			if (!empty($msg) && empty($_POST["persistformvar"])) {
 				require_once "resources/header.php";
 				require_once "resources/persist_form_var.php";
 				echo "<div align='center'>\n";
@@ -207,13 +236,13 @@
 			}
 
 		//prepare to build the array
-			if (strlen(trim($_POST['dialplan_expression'])) > 0) {
+			if (!empty(trim($_POST['dialplan_expression']))) {
 
 				$tmp_array = explode("\n", $_POST['dialplan_expression']);
 				$x = 0;
 				foreach($tmp_array as $dialplan_expression) {
 					$dialplan_expression = trim($dialplan_expression);
-					if (strlen($dialplan_expression) > 0) {
+					if (!empty($dialplan_expression)) {
 						switch ($dialplan_expression) {
 						case "^(\d{7})$":
 							$label = $text['label-7d'];
@@ -235,15 +264,15 @@
 							$label = $text['label-11d'];
 							$abbrv = "11d";
 							break;
-						case "^(?:\+?1)?(\d{10})$":
+						case "^(?:\+1|1)?([2-9]\d{2}[2-9]\d{2}\d{4})$":
 							$label = $text['label-north_america'];
-							$abbrv = "10-11d";
+							$abbrv = "10-11-NANP";
 							break;
 						case "^(011\d{9,17})$":
 							$label = $text['label-north_america_intl'];
 							$abbrv = "011.9-17d";
 							break;
-						case "^\+?1?((?:264|268|242|246|441|284|345|767|809|829|849|473|658|876|664|787|939|869|758|784|721|868|649|340|684|671|670|808)\d{7})$":
+						case "^(?:\+1|1)((?:264|268|242|246|441|284|345|767|809|829|849|473|658|876|664|787|939|869|758|784|721|868|649|340|684|671|670|808)\d{7})$":
 							$label = $text['label-north_america_islands'];
 							$abbrv = "011.9-17d";
 							break;
@@ -295,7 +324,7 @@
 							$label = $text['label-9d.12-20'];
 							$abbrv = "9.12-20";
 							break;
-						case "^1?(8(00|33|44|55|66|77|88)[2-9]\d{6})$":
+						case "^(?:\+1|1)?(8(00|33|44|55|66|77|88)[2-9]\d{6})$":
 							$label = $text['label-800'];
 							$abbrv = "800";
 							break;
@@ -313,7 +342,7 @@
 						$tmp_prefix == $dialplan_expression
 								? $outbound_prefix = ""
 								: $outbound_prefix = $tmp_prefix;
-	
+
 						if ($gateway_type == "gateway") {
 							$dialplan_name = $gateway_name.".".$abbrv;
 							if ($abbrv == "988") {
@@ -322,7 +351,7 @@
 								$bridge_data = "sofia/gateway/".$gateway_uuid."/".$prefix_number."\$1";
 							}
 						}
-						if (strlen($gateway_2_name) > 0 && $gateway_2_type == "gateway") {
+						if (!empty($gateway_2_name) && $gateway_2_type == "gateway") {
 							$extension_2_name = $gateway_2_id.".".$abbrv;
 							if ($abbrv == "988") {
 								$bridge_2_data = "sofia/gateway/".$gateway_2_id."/".$prefix_number."18002738255";
@@ -330,7 +359,7 @@
 								$bridge_2_data = "sofia/gateway/".$gateway_2_id."/".$prefix_number."\$1";
 							}
 						}
-						if (strlen($gateway_3_name) > 0 && $gateway_3_type == "gateway") {
+						if (!empty($gateway_3_name) && $gateway_3_type == "gateway") {
 							$extension_3_name = $gateway_3_id.".".$abbrv;
 							if ($abbrv == "988") {
 								$bridge_3_data = "sofia/gateway/".$gateway_3_id."/".$prefix_number."18002738255";
@@ -380,7 +409,7 @@
 						}
 
 						if ($gateway_type == "enum") {
-							if (strlen($bridge_2_data) == 0) {
+							if (empty($bridge_2_data)) {
 								$dialplan_name = "enum.".$abbrv;
 							}
 							else {
@@ -409,117 +438,181 @@
 							$bridge_3_data = $gateway_array[1];
 						}
 
-						if (strlen($dialplan_order) == 0) {
-							$dialplan_order ='333';
+						if (empty($dialplan_order)) {
+							$dialplan_order ='300';
 						}
-						$dialplan_context = $_SESSION['domain_name'];
-						$dialplan_continue = 'false';
-						$app_uuid = '8c914ec3-9fc0-8ab5-4cda-6c9288bdc9a3';
 
 					//set the uuid
 						$dialplan_uuid = uuid();
 
-					//build the array
-						$array['dialplans'][$x]['domain_uuid'] = $_SESSION['domain_uuid'];
+					//build the array - set call_direction
+						$x = 0;
+						$array['dialplans'][$x]['domain_uuid'] = $domain_uuid;
 						$array['dialplans'][$x]['dialplan_uuid'] = $dialplan_uuid;
 						$array['dialplans'][$x]['app_uuid'] = $app_uuid;
-						$array['dialplans'][$x]['dialplan_name'] = $dialplan_name;
-						$array['dialplans'][$x]['dialplan_order'] = $dialplan_order;
-						$array['dialplans'][$x]['dialplan_continue'] = $dialplan_continue;
+						$array['dialplans'][$x]['dialplan_name'] = 'call_direction-outbound'.(empty($dialplan_description) && !empty($abbrv) ? '.'.$abbrv : null);
+						$array['dialplans'][$x]['dialplan_order'] = '22';
+						$array['dialplans'][$x]['dialplan_continue'] = 'true';
 						$array['dialplans'][$x]['dialplan_context'] = $dialplan_context;
 						$array['dialplans'][$x]['dialplan_enabled'] = $dialplan_enabled;
 						$array['dialplans'][$x]['dialplan_description'] = $dialplan_description;
-						$y = 0;
+						$y = 1;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'condition';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = '${user_exists}';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'false';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 						$y++;
-
-						if (strlen($toll_allow) > 0) {
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'condition';
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = '${toll_allow}';
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = $toll_allow;
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
-							$y++;
-						}
-
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'condition';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = '${call_direction}';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = '^$';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
+						$y++;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
+						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'condition';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'destination_number';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = $dialplan_expression;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
+						$y++;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
+						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'export';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'call_direction=outbound';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_inline'] = 'true';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
+						$y++;
+						$x++;
+
+					//set the uuid
+						$dialplan_uuid = uuid();
+
+					//build the array - outbound route
+						$array['dialplans'][$x]['domain_uuid'] = $domain_uuid;
+						$array['dialplans'][$x]['dialplan_uuid'] = $dialplan_uuid;
+						$array['dialplans'][$x]['app_uuid'] = $app_uuid;
+						$array['dialplans'][$x]['dialplan_name'] = $dialplan_name;
+						$array['dialplans'][$x]['dialplan_order'] = $dialplan_order;
+						$array['dialplans'][$x]['dialplan_continue'] = 'false';
+						$array['dialplans'][$x]['dialplan_context'] = $dialplan_context;
+						$array['dialplans'][$x]['dialplan_enabled'] = $dialplan_enabled;
+						$array['dialplans'][$x]['dialplan_description'] = $dialplan_description;
+						$y = 1;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
+						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'condition';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = '${user_exists}';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'false';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
+						$y++;
+
+						if (!empty($toll_allow)) {
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'condition';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = '${toll_allow}';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = $toll_allow;
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
+							$y++;
+						}
+
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
+						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'condition';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'destination_number';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = $dialplan_expression;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = true;
 
 						if ($gateway_type != "transfer") {
-							if (strlen($accountcode) > 0) {
+							if (!empty($accountcode)) {
 								$y++;
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-								$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+								$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
-								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'sip_h_X-accountcode='.$accountcode;
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'sip_h_accountcode='.$accountcode;
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'false';
 							}
 							else {
 								$y++;
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-								$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+								$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
-								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'sip_h_X-accountcode=${accountcode}';
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'sip_h_accountcode=${accountcode}';
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'false';
 							}
 						}
 
 						$y++;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'export';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'call_direction=outbound';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_inline'] = 'true';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 
 						$y++;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'unset';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'call_timeout';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 
 						if ($gateway_type != "transfer") {
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'hangup_after_bridge=true';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
@@ -531,10 +624,11 @@
 							}
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
@@ -546,151 +640,196 @@
 							}
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
+
+							if ($dialplan_expression == '(^911$|^933$)') {
+								$y++;
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
+								$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'call_date=${strftime(%d-%b-%Y %r)}';
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'false';
+								$y++;
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
+								$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'lua';
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = "app.lua emergency 1";
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+								$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'false';
+							}
 
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'inherit_codec=true';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'ignore_display_updates=true';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'callee_id_number=$1';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = true;
 
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'continue_on_fail=1,2,3,6,18,21,27,28,31,34,38,41,42,44,58,88,111,403,501,602,607';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'continue_on_fail=1,2,3,6,18,21,27,28,31,34,38,41,42,44,58,88,111,403,501,602,607,809';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 						}
 
 						if ($gateway_type == "enum" || $gateway_2_type == "enum") {
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'enum';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = $prefix_number."$1 e164.org";
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 						}
 
-						if (strlen($limit) > 0) {
-							$y++;
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'limit';
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = "hash \${domain_name} outbound ".$limit." !USER_BUSY";
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
-							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
-						}
+						$y++;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
+						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = "limit_max=".$limit;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = $limit_enable;
+						$y++;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
+						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'limit';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = "hash \${domain_name} outbound \${limit_max} !USER_BUSY";
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = $limit_enable;
 
-						if (strlen($outbound_prefix) > 0) {
+						if (!empty($outbound_prefix)) {
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'outbound_prefix='.$outbound_prefix;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 						}
 
 						if ($pin_numbers_enable == "true") {
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'pin_number=database';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'lua';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'pin_number.lua';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 						}
 
 						if (strlen($prefix_number) > 2) {
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'set';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = 'provider_prefix='.$prefix_number;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 						}
 
 						if ($gateway_type == "transfer") { $dialplan_detail_type = 'transfer'; } else { $dialplan_detail_type = 'bridge'; }
 						$y++;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+						$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = $dialplan_detail_type;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = $bridge_data;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+						$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 
-						if (strlen($bridge_2_data) > 0) {
+						if (!empty($bridge_2_data)) {
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'bridge';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = $bridge_2_data;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 						}
 
-						if (strlen($bridge_3_data) > 0) {
+						if (!empty($bridge_3_data)) {
 							$y++;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_uuid'] = uuid();
-							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $_SESSION['domain_uuid'];
+							$array['dialplans'][$x]['dialplan_details'][$y]['domain_uuid'] = $domain_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_uuid'] = $dialplan_uuid;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_tag'] = 'action';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_type'] = 'bridge';
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_data'] = $bridge_3_data;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_order'] = $y * 10;
 							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_group'] = '0';
+							$array['dialplans'][$x]['dialplan_details'][$y]['dialplan_detail_enabled'] = 'true';
 						}
 
 						unset($bridge_data);
@@ -705,14 +844,11 @@
 			}
 
 		//add the dialplan permission
-			$p = new permissions;
+			$p = permissions::new();
 			$p->add("dialplan_add", "temp");
 			$p->add("dialplan_detail_add", "temp");
 
 		//save to the data
-			$database = new database;
-			$database->app_name = 'outbound_routes';
-			$database->app_uuid = $app_uuid;
 			$database->save($array);
 			$message = $database->message;
 			unset($array);
@@ -740,36 +876,36 @@
 
 //get the domains
 	$sql = "select * from v_domains ";
-	$sql .= "where domain_enabled = 'true' ";
-	$database = new database;
+	$sql .= "where domain_enabled = true ";
 	$domains = $database->select($sql, null, 'all');
 	unset($sql);
 
 //get the gateways
 	$sql = "select * from v_gateways ";
-	$sql .= "where enabled = 'true' ";
+	$sql .= "where enabled = true ";
 	if (permission_exists('outbound_route_any_gateway')) {
-		$sql .= "order by domain_uuid = :domain_uuid DESC, gateway ";
+		$sql .= "order by CASE WHEN domain_uuid = :domain_uuid THEN 0 ELSE 1 END, domain_uuid DESC, gateway ";
 	}
 	else {
 		$sql .= "and domain_uuid = :domain_uuid ";
-		
+
 	}
 	$parameters['domain_uuid'] = $domain_uuid;
-	$database = new database;
 	$gateways = $database->select($sql, $parameters, 'all');
 	unset($sql, $parameters);
 
 //get the bridges
 	if (permission_exists('bridge_view')) {
 		$sql = "select * from v_bridges ";
-		$sql .= "where bridge_enabled = 'true' ";
+		$sql .= "where bridge_enabled = true ";
 		$sql .= "and domain_uuid = :domain_uuid ";
 		$parameters['domain_uuid'] = $domain_uuid;
-		$database = new database;
 		$bridges = $database->select($sql, $parameters, 'all');
 		unset($sql, $parameters);
 	}
+
+//define the maximum dialplan order number - maximum order set to 300 to prevent loops with call-forward-all
+	$dialplan_order_max = 300;
 
 //create token
 	$object = new token;
@@ -820,8 +956,8 @@ function type_onchange(dialplan_detail_type) {
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'><b>".$text['label-outbound-routes']."</b></div>\n";
 	echo "	<div class='actions'>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','link'=>PROJECT_PATH.'/app/dialplans/dialplans.php?app_uuid=8c914ec3-9fc0-8ab5-4cda-6c9288bdc9a3']);
-	echo button::create(['type'=>'submit','label'=>$text['button-save'],'icon'=>$_SESSION['theme']['button_icon_save'],'id'=>'btn_save','style'=>'margin-left: 15px;']);
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','link'=>PROJECT_PATH.'/app/dialplans/dialplans.php?app_uuid=8c914ec3-9fc0-8ab5-4cda-6c9288bdc9a3']);
+	echo button::create(['type'=>'submit','label'=>$text['button-save'],'icon'=>$settings->get('theme', 'button_icon_save'),'id'=>'btn_save','style'=>'margin-left: 15px;']);
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
@@ -829,6 +965,7 @@ function type_onchange(dialplan_detail_type) {
 	echo $text['description-outbound-routes']."\n";
 	echo "<br /><br />\n";
 
+	echo "<div class='card'>\n";
 	echo "<table width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
 	echo "<tr>\n";
 	echo "<td width='30%' class='vncellreq' valign='top' align='left' nowrap>\n";
@@ -898,11 +1035,11 @@ function type_onchange(dialplan_detail_type) {
 						break;
 					}
 				}
-				if (strlen($domain_name) == 0) { $domain_name = $text['label-global']; }
+				if (empty($domain_name)) { $domain_name = $text['label-global']; }
 				echo "</optgroup>";
 				echo "<optgroup label='&nbsp; &nbsp;".$domain_name."'>\n";
 			}
-			if ($row['gateway'] == $gateway_name) {
+			if (!empty($gateway_name) && $row['gateway'] == $gateway_name) {
 				echo "<option value=\"".escape($row['gateway_uuid']).":".escape($row['gateway'])."\" selected=\"selected\">".escape($row['gateway'])."</option>\n";
 			}
 			else {
@@ -910,7 +1047,7 @@ function type_onchange(dialplan_detail_type) {
 			}
 		}
 		else {
-			if ($row['gateway'] == $gateway_name) {
+			if (!empty($gateway_name) && $row['gateway'] == $gateway_name) {
 				echo "<option value=\"".escape($row['gateway_uuid']).":".escape($row['gateway'])."\" $onchange selected=\"selected\">".escape($row['gateway'])."</option>\n";
 			}
 			else {
@@ -932,6 +1069,7 @@ function type_onchange(dialplan_detail_type) {
 	echo "		<option value=\"freetdm\">freetdm</option>\n";
 	echo "		<option value=\"transfer:\$1 XML \${domain_name}\">transfer</option>\n";
 	echo "		<option value=\"xmpp\">xmpp</option>\n";
+	echo "		<option value=\"hangup\">hangup</option>\n";
 	echo "	</optgroup>\n";
 	echo "</select>\n";
 	echo "<br />\n";
@@ -958,11 +1096,11 @@ function type_onchange(dialplan_detail_type) {
 						break;
 					}
 				}
-				if (strlen($domain_name) == 0) { $domain_name = $text['label-global']; }
+				if (empty($domain_name)) { $domain_name = $text['label-global']; }
 				echo "	</optgroup>\n";
 				echo "	<optgroup label='&nbsp; &nbsp;".$domain_name."'>\n";
 			}
-			if ($row['gateway'] == $gateway_2_name) {
+			if (!empty($gateway_2_name) && $row['gateway'] == $gateway_2_name) {
 				echo "		<option value=\"".escape($row['gateway_uuid']).":".escape($row['gateway'])."\" selected=\"selected\">".escape($row['gateway'])."</option>\n";
 			}
 			else {
@@ -970,7 +1108,7 @@ function type_onchange(dialplan_detail_type) {
 			}
 		}
 		else {
-			if ($row['gateway'] == $gateway_2_name) {
+			if (!empty($gateway_2_name) && $row['gateway'] == $gateway_2_name) {
 				echo "		<option value=\"".escape($row['gateway_uuid']).":".escape($row['gateway'])."\" selected=\"selected\">".escape($row['gateway'])."</option>\n";
 			}
 			else {
@@ -992,6 +1130,7 @@ function type_onchange(dialplan_detail_type) {
 	echo "		<option value=\"freetdm\">freetdm</option>\n";
 	echo "		<option value=\"transfer:\$1 XML \${domain_name}\">transfer</option>\n";
 	echo "		<option value=\"xmpp\">xmpp</option>\n";
+	echo "		<option value=\"hangup\">hangup</option>\n";
 	echo "	</optgroup>\n";
 	echo "</select>\n";
 	echo "<br />\n";
@@ -1018,11 +1157,11 @@ function type_onchange(dialplan_detail_type) {
 						break;
 					}
 				}
-				if (strlen($domain_name) == 0) { $domain_name = $text['label-global']; }
+				if (empty($domain_name)) { $domain_name = $text['label-global']; }
 				echo "	</optgroup>\n";
 				echo "	<optgroup label='&nbsp; &nbsp;".$domain_name."'>\n";
 			}
-			if ($row['gateway'] == $gateway_3_name) {
+			if (!empty($gateway_3_name) && $row['gateway'] == $gateway_3_name) {
 				echo "		<option value=\"".escape($row['gateway_uuid']).":".escape($row['gateway'])."\" selected=\"selected\">".escape($row['gateway'])."</option>\n";
 			}
 			else {
@@ -1030,7 +1169,7 @@ function type_onchange(dialplan_detail_type) {
 			}
 		}
 		else {
-			if ($row['gateway'] == $gateway_3_name) {
+			if (!empty($gateway_3_name) && $row['gateway'] == $gateway_3_name) {
 				echo "		<option value=\"".escape($row['gateway_uuid']).":".escape($row['gateway'])."\" selected=\"selected\">".escape($row['gateway'])."</option>\n";
 			}
 			else {
@@ -1052,6 +1191,7 @@ function type_onchange(dialplan_detail_type) {
 	echo "		<option value=\"freetdm\">freetdm</option>\n";
 	echo "		<option value=\"transfer:\$1 XML \${domain_name}\">transfer</option>\n";
 	echo "		<option value=\"xmpp\">xmpp</option>\n";
+	echo "		<option value=\"hangup\">hangup</option>\n";
 	echo "	</optgroup>\n";
 	echo "</select>\n";
 	echo "<br />\n";
@@ -1071,7 +1211,7 @@ function type_onchange(dialplan_detail_type) {
 	echo "	<div id=\"enter_custom_outbound_prefix_box\" style=\"display:none\">\n";
 	echo "		<input class='formfld' style='width: 10%;' type='text' name='custom-outbound-prefix' id=\"outbound_prefix\" maxlength='255'>\n";
 	echo "		<input type='button' class='btn' name='' onclick=\"update_outbound_prefix()\" value='".$text['button-add']."'>\n";
-	echo "		<br />".$text['description-enter-custom-outbound-prefix'].".\n";
+	//echo "		<br />".$text['description-enter-custom-outbound-prefix'].".\n";
 	echo "	</div>\n";
 
 	echo "	<select name='dialplan_expression_select' id='dialplan_expression_select' onchange=\"update_dialplan_expression()\" class='formfld'>\n";
@@ -1086,9 +1226,9 @@ function type_onchange(dialplan_detail_type) {
 	echo "	<option value='^(\\d{9})\$'>".$text['label-9d']."</option>\n";
 	echo "	<option value='^(\\d{10})\$'>".$text['label-10d']."</option>\n";
 	echo "	<option value='^\+?(\\d{11})\$'>".$text['label-11d']."</option>\n";
-	echo "	<option value='^\+?1?(\\d{10})\$'>".$text['label-north_america']."</option>\n";
+	echo "	<option value='^(?:\+1|1)?([2-9]\\d{2}[2-9]\\d{2}\\d{4})\$'>".$text['label-north_america']."</option>\n";
 	echo "	<option value='^(011\\d{9,17})\$'>".$text['label-north_america_intl']."</option>\n";
-	echo "	<option value='^\+?1?((?:264|268|242|246|441|284|345|767|809|829|849|473|658|876|664|787|939|869|758|784|721|868|649|340|684|671|670|808)\d{7})\$'>".$text['label-north_america_islands']."</option>\n";
+	echo "	<option value='^(?:\+1|1)?((?:264|268|242|246|441|284|345|767|809|829|849|473|658|876|664|787|939|869|758|784|721|868|649|340|684|671|670|808)\d{7})\$'>".$text['label-north_america_islands']."</option>\n";
 	echo "	<option value='^(00\\d{9,17})\$'>".$text['label-europe_intl']."</option>\n";
 	echo "	<option value='^(\\d{12,20})\$'>".$text['label-intl']."</option>\n";
 	echo "	<option value='^(311)\$'>".$text['label-311']."</option>\n";
@@ -1096,7 +1236,7 @@ function type_onchange(dialplan_detail_type) {
 	echo "	<option value='^(711)\$'>".$text['label-711']."</option>\n";
 	echo "	<option value='(^911\$|^933\$)'>".$text['label-911']."</option>\n";
 	echo "  <option value='(^988\$)'>".$text['label-988']."</option>\n";
-	echo "	<option value='^1?(8(00|33|44|55|66|77|88)[2-9]\\d{6})\$'>".$text['label-800']."</option>\n";
+	echo "	<option value='^(?:\+1|1)?(8(00|33|44|55|66|77|88)[2-9]\\d{6})\$'>".$text['label-800']."</option>\n";
 	echo "	<option value='^0118835100\d{8}\$'>".$text['label-inum']."</option>\n";
 	echo "	<option value='^9(\\d{2})\$'>".$text['label-9d2']."</option>\n";
 	echo "	<option value='^9(\\d{3})\$'>".$text['label-9d3']."</option>\n";
@@ -1167,12 +1307,19 @@ function type_onchange(dialplan_detail_type) {
 		echo "	".$text['label-pin_numbers']."\n";
 		echo "</td>\n";
 		echo "<td class='vtable' align='left'>\n";
+		if ($input_toggle_style_switch) {
+			echo "	<span class='switch'>\n";
+		}
 		echo "	<select class='formfld' name='pin_numbers_enabled'>\n";
 		echo "		<option value='true'>".$text['label-true']."</option>\n";
 		echo "		<option value='false' selected='true'>".$text['label-false']."</option>\n";
 		echo "	</select>\n";
+		if ($input_toggle_style_switch) {
+			echo "		<span class='slider'></span>\n";
+			echo "	</span>\n";
+		}
 		echo "<br />\n";
-		echo $text['description-enable-pin_numbers']."\n";
+		//echo $text['description-enable-pin_numbers']."\n";
 		echo "</td>\n";
 		echo "</tr>\n";
 	}
@@ -1183,16 +1330,13 @@ function type_onchange(dialplan_detail_type) {
 	echo "</td>\n";
 	echo "<td class='vtable' align='left'>\n";
 	echo "	<select name='dialplan_order' class='formfld'>\n";
-	//echo "		<option></option>\n";
-	if (strlen(htmlspecialchars($dialplan_order))> 0) {
+	if (!empty($dialplan_order) && strlen(htmlspecialchars($dialplan_order))> 0) {
 		echo "		<option selected='yes' value='".escape($dialplan_order)."'>".escape($dialplan_order)."</option>\n";
 	}
-	$i = 100;
-	while($i <= 999) {
+	for ($i = 100; $i <= $dialplan_order_max; $i+=10) {
 		if (strlen($i) == 1) { echo "		<option value='00$i'>00$i</option>\n"; }
 		if (strlen($i) == 2) { echo "		<option value='0$i'>0$i</option>\n"; }
 		if (strlen($i) == 3) { echo "		<option value='$i'>$i</option>\n"; }
-		$i = $i + 10;
 	}
 	echo "	</select>\n";
 	echo "	<br />\n";
@@ -1204,22 +1348,18 @@ function type_onchange(dialplan_detail_type) {
 	echo "<td class='vncellreq' valign='top' align='left' nowrap>\n";
 	echo "	".$text['label-enabled']."\n";
 	echo "</td>\n";
-	echo "<td class='vtable' align='left'>\n";
-	echo "	<select class='formfld' name='dialplan_enabled'>\n";
-	//echo "	<option value=''></option>\n";
-	if ($dialplan_enabled == "true") {
-		echo "	<option value='true' selected='selected'>".$text['label-true']."</option>\n";
+	echo "<td class='vtable' style='position: relative;' align='left'>\n";
+	if ($input_toggle_style_switch) {
+		echo "	<span class='switch'>\n";
 	}
-	else {
-		echo "	<option value='true'>".$text['label-true']."</option>\n";
-	}
-	if ($dialplan_enabled == "false") {
-		echo "	<option value='false' selected='selected'>".$text['label-false']."</option>\n";
-	}
-	else {
-		echo "	<option value='false'>".$text['label-false']."</option>\n";
-	}
+	echo "	<select class='formfld' id='dialplan_enabled' name='dialplan_enabled'>\n";
+	echo "		<option value='true' ".($dialplan_enabled == true ? "selected='selected'" : null).">".$text['option-true']."</option>\n";
+	echo "		<option value='false' ".($dialplan_enabled == false ? "selected='selected'" : null).">".$text['option-false']."</option>\n";
 	echo "	</select>\n";
+	if ($input_toggle_style_switch) {
+		echo "		<span class='slider'></span>\n";
+		echo "	</span>\n";
+	}
 	echo "<br />\n";
 	echo $text['description-enabled']."\n";
 	echo "</td>\n";
@@ -1236,15 +1376,16 @@ function type_onchange(dialplan_detail_type) {
 	echo "</td>\n";
 	echo "</tr>\n";
 
-	echo "</table>";
-	echo "<br><br>";
+	echo "</table>\n";
+	echo "</div>\n";
+	echo "<br><br>\n";
 
-	if ($action == "update") {
+	if (!empty($action) && $action == "update") {
 		echo "<input type='hidden' name='dialplan_uuid' value='".escape($dialplan_uuid)."'>\n";
 	}
 	echo "<input type='hidden' name='".$token['name']."' value='".$token['hash']."'>\n";
 
-	echo "</form>";
+	echo "</form>\n";
 
 //show the footer
 	require_once "resources/footer.php";

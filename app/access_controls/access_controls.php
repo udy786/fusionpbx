@@ -17,23 +17,19 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2018 - 2020
+	Portions created by the Initial Developer are Copyright (C) 2018-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	require_once "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('access_control_view')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('access_control_view')) {
 		echo "access denied";
 		exit;
 	}
@@ -42,63 +38,47 @@
 	$language = new text;
 	$text = $language->get();
 
+//define variable
+	$search = '';
+
+//add the settings object
+	$settings = new settings(["domain_uuid" => $_SESSION['domain_uuid'], "user_uuid" => $_SESSION['user_uuid']]);
+
+//set from session variables
+	$list_row_edit_button = $settings->get('theme', 'list_row_edit_button', 'false');
+
 //get the http post data
-	if (is_array($_POST['access_controls'])) {
-		$action = $_POST['action'];
-		$search = $_POST['search'];
+	if (!empty($_POST['access_controls'])) {
+		$action = $_POST['action'] ?? '';
+		$search = $_POST['search'] ?? '';
 		$access_controls = $_POST['access_controls'];
 	}
 
 //process the http post data by action
-	if ($action != '' && is_array($access_controls) && @sizeof($access_controls) != 0) {
-
-		//validate the token
-		$token = new token;
-		if (!$token->validate($_SERVER['PHP_SELF'])) {
-			message::add($text['message-invalid_token'],'negative');
-			header('Location: access_controls.php');
-			exit;
-		}
-
-		//prepare the array
-		foreach($access_controls as $row) {
-			$array['access_controls'][$x]['checked'] = $row['checked'];
-			$array['access_controls'][$x]['access_control_uuid'] = $row['access_control_uuid'];
-			$x++;
-		}
-
-		//prepare the database object
-		$database = new database;
-		$database->app_name = 'access_controls';
-		$database->app_uuid = '1416a250-f6e1-4edc-91a6-5c9b883638fd';
-
-		//send the array to the database class
+	if (!empty($action) && !empty($access_controls) && count($access_controls) > 0) {
 		switch ($action) {
 			case 'copy':
 				if (permission_exists('access_control_add')) {
-					$database->copy($array);
-				}
-				break;
-			case 'toggle':
-				if (permission_exists('access_control_edit')) {
-					$database->toggle($array);
+					$obj = new access_controls;
+					$obj->copy($access_controls);
 				}
 				break;
 			case 'delete':
 				if (permission_exists('access_control_delete')) {
-					$database->delete($array);
+					$obj = new access_controls;
+					$obj->delete($access_controls);
 				}
 				break;
 		}
 
 		//redirect the user
-		header('Location: access_controls.php'.($search != '' ? '?search='.urlencode($search) : null));
+		header('Location: access_controls.php'.(!empty($search) ? '?search='.urlencode($search) : ''));
 		exit;
 	}
 
 //get order and order by
-	$order_by = $_GET["order_by"];
-	$order = $_GET["order"];
+	$order_by = $_GET["order_by"] ?? '';
+	$order = $_GET["order"] ?? '';
 
 //add the search
 	if (isset($_GET["search"])) {
@@ -109,15 +89,14 @@
 //get the count
 	$sql = "select count(access_control_uuid) ";
 	$sql .= "from v_access_controls ";
-	if (isset($_GET["search"])) {
+	if (!empty($search)) {
 		$sql .= "where (";
 		$sql .= "	lower(access_control_name) like :search ";
 		$sql .= "	or lower(access_control_default) like :search ";
 		$sql .= "	or lower(access_control_description) like :search ";
 		$sql .= ") ";
 	}
-	$database = new database;
-	$num_rows = $database->select($sql, $parameters, 'column');
+	$num_rows = $database->select($sql, $parameters ?? null, 'column');
 
 //get the list
 	$sql = "select ";
@@ -126,7 +105,7 @@
 	$sql .= "access_control_default, ";
 	$sql .= "access_control_description ";
 	$sql .= "from v_access_controls ";
-	if (isset($_GET["search"])) {
+	if (!empty($search)) {
 		$sql .= "where (";
 		$sql .= "	lower(access_control_name) like :search ";
 		$sql .= "	or lower(access_control_default) like :search ";
@@ -134,9 +113,7 @@
 		$sql .= ") ";
 	}
 	$sql .= order_by($order_by, $order, 'access_control_name', 'asc');
-	$sql .= limit_offset($rows_per_page, $offset);
-	$database = new database;
-	$access_controls = $database->select($sql, $parameters, 'all');
+	$access_controls = $database->select($sql, $parameters ?? null, 'all');
 	unset($sql, $parameters);
 
 //create token
@@ -149,24 +126,22 @@
 
 //show the content
 	echo "<div class='action_bar' id='action_bar'>\n";
-	echo "	<div class='heading'><b>".$text['title-access_controls']." (".$num_rows.")</b></div>\n";
+	echo "	<div class='heading'><b>".$text['title-access_controls']."</b><div class='count'>".number_format($num_rows)."</div></div>\n";
 	echo "	<div class='actions'>\n";
+	echo button::create(['label'=>$text['button-reload'],'icon'=>$settings->get('theme', 'button_icon_reload'),'type'=>'button','id'=>'button_reload','link'=>'access_controls_reload.php'.(!empty($search) ? '?search='.urlencode($search) : ''),'style'=>'margin-right: 15px;']);
 	if (permission_exists('access_control_add')) {
-		echo button::create(['type'=>'button','label'=>$text['button-add'],'icon'=>$_SESSION['theme']['button_icon_add'],'id'=>'btn_add','name'=>'btn_add','link'=>'access_control_edit.php']);
+		echo button::create(['type'=>'button','label'=>$text['button-add'],'icon'=>$settings->get('theme', 'button_icon_add'),'id'=>'btn_add','name'=>'btn_add','link'=>'access_control_edit.php']);
 	}
 	if (permission_exists('access_control_add') && $access_controls) {
-		echo button::create(['type'=>'button','label'=>$text['button-copy'],'icon'=>$_SESSION['theme']['button_icon_copy'],'id'=>'btn_copy','name'=>'btn_copy','style'=>'display:none;','onclick'=>"modal_open('modal-copy','btn_copy');"]);
+		echo button::create(['type'=>'button','label'=>$text['button-copy'],'icon'=>$settings->get('theme', 'button_icon_copy'),'id'=>'btn_copy','name'=>'btn_copy','style'=>'display:none;','onclick'=>"modal_open('modal-copy','btn_copy');"]);
 	}
 	if (permission_exists('access_control_delete') && $access_controls) {
-		echo button::create(['type'=>'button','label'=>$text['button-delete'],'icon'=>$_SESSION['theme']['button_icon_delete'],'id'=>'btn_delete','name'=>'btn_delete','style'=>'display:none;','onclick'=>"modal_open('modal-delete','btn_delete');"]);
+		echo button::create(['type'=>'button','label'=>$text['button-delete'],'icon'=>$settings->get('theme', 'button_icon_delete'),'id'=>'btn_delete','name'=>'btn_delete','style'=>'display:none;','onclick'=>"modal_open('modal-delete','btn_delete');"]);
 	}
 	echo 		"<form id='form_search' class='inline' method='get'>\n";
-	echo 		"<input type='text' class='txt list-search' name='search' id='search' value=\"".escape($search)."\" placeholder=\"".$text['label-search']."\" onkeydown='list_search_reset();'>";
-	echo button::create(['label'=>$text['button-search'],'icon'=>$_SESSION['theme']['button_icon_search'],'type'=>'submit','id'=>'btn_search','style'=>($search != '' ? 'display: none;' : null)]);
-	echo button::create(['label'=>$text['button-reset'],'icon'=>$_SESSION['theme']['button_icon_reset'],'type'=>'button','id'=>'btn_reset','link'=>'access_controls.php','style'=>($search == '' ? 'display: none;' : null)]);
-	if ($paging_controls_mini != '') {
-		echo 	"<span style='margin-left: 15px;'>".$paging_controls_mini."</span>\n";
-	}
+	echo 		"<input type='text' class='txt list-search' name='search' id='search' value=\"".escape($search)."\" placeholder=\"".$text['label-search']."\" onkeydown=''>";
+	echo button::create(['label'=>$text['button-search'],'icon'=>$settings->get('theme', 'button_icon_search'),'type'=>'submit','id'=>'btn_search']);
+	//echo button::create(['label'=>$text['button-reset'],'icon'=>$settings->get('theme', 'button_icon_reset'),'type'=>'button','id'=>'btn_reset','link'=>'access_controls.php','style'=>($search == '' ? 'display: none;' : null)]);
 	echo "		</form>\n";
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
@@ -186,32 +161,37 @@
 	echo "<input type='hidden' id='action' name='action' value=''>\n";
 	echo "<input type='hidden' name='search' value=\"".escape($search)."\">\n";
 
+	echo "<div class='card'>\n";
 	echo "<table class='list'>\n";
 	echo "<tr class='list-header'>\n";
 	if (permission_exists('access_control_add') || permission_exists('access_control_edit') || permission_exists('access_control_delete')) {
 		echo "	<th class='checkbox'>\n";
-		echo "		<input type='checkbox' id='checkbox_all' name='checkbox_all' onclick='list_all_toggle(); checkbox_on_change(this);' ".($access_controls ?: "style='visibility: hidden;'").">\n";
+		echo "		<input type='checkbox' id='checkbox_all' name='checkbox_all' onclick='list_all_toggle(); checkbox_on_change(this);' ".(!empty($access_controls) ?: "style='visibility: hidden;'").">\n";
 		echo "	</th>\n";
 	}
 	echo th_order_by('access_control_name', $text['label-access_control_name'], $order_by, $order);
 	echo th_order_by('access_control_default', $text['label-access_control_default'], $order_by, $order);
 	echo "	<th class='hide-sm-dn'>".$text['label-access_control_description']."</th>\n";
-	if (permission_exists('access_control_edit') && $_SESSION['theme']['list_row_edit_button']['boolean'] == 'true') {
+	if (permission_exists('access_control_edit') && $list_row_edit_button == 'true') {
 		echo "	<td class='action-button'>&nbsp;</td>\n";
 	}
 	echo "</tr>\n";
 
-	if (is_array($access_controls) && @sizeof($access_controls) != 0) {
+	if (!empty($access_controls) && count($access_controls) > 0) {
 		$x = 0;
 		foreach ($access_controls as $row) {
-			if (permission_exists('access_control_edit')) {
+			$list_row_url = '';
+			if (permission_exists('access_control_view')) {
 				$list_row_url = "access_control_edit.php?id=".urlencode($row['access_control_uuid']);
+				if (!empty($row['domain_uuid']) && $row['domain_uuid'] != $_SESSION['domain_uuid'] && permission_exists('domain_select')) {
+					$list_row_url .= '&domain_uuid='.urlencode($row['domain_uuid']).'&domain_change=true';
+				}
 			}
 			echo "<tr class='list-row' href='".$list_row_url."'>\n";
 			if (permission_exists('access_control_add') || permission_exists('access_control_edit') || permission_exists('access_control_delete')) {
 				echo "	<td class='checkbox'>\n";
 				echo "		<input type='checkbox' name='access_controls[$x][checked]' id='checkbox_".$x."' value='true' onclick=\"checkbox_on_change(this); if (!this.checked) { document.getElementById('checkbox_all').checked = false; }\">\n";
-				echo "		<input type='hidden' name='access_controls[$x][access_control_uuid]' value='".escape($row['access_control_uuid'])."' />\n";
+				echo "		<input type='hidden' name='access_controls[$x][uuid]' value='".escape($row['access_control_uuid'])."' />\n";
 				echo "	</td>\n";
 			}
 			echo "	<td>\n";
@@ -224,9 +204,9 @@
 			echo "	</td>\n";
 			echo "	<td>".escape($row['access_control_default'])."</td>\n";
 			echo "	<td class='description overflow hide-sm-dn'>".escape($row['access_control_description'])."</td>\n";
-			if (permission_exists('access_control_edit') && $_SESSION['theme']['list_row_edit_button']['boolean'] == 'true') {
+			if (permission_exists('access_control_edit') && $list_row_edit_button == 'true') {
 				echo "	<td class='action-button'>\n";
-				echo button::create(['type'=>'button','title'=>$text['button-edit'],'icon'=>$_SESSION['theme']['button_icon_edit'],'link'=>$list_row_url]);
+				echo button::create(['type'=>'button','title'=>$text['button-edit'],'icon'=>$settings->get('theme', 'button_icon_edit'),'link'=>$list_row_url]);
 				echo "	</td>\n";
 			}
 			echo "</tr>\n";
@@ -236,8 +216,8 @@
 	}
 
 	echo "</table>\n";
+	echo "</div>\n";
 	echo "<br />\n";
-	echo "<div align='center'>".$paging_controls."</div>\n";
 
 	echo "<input type='hidden' name='".$token['name']."' value='".$token['hash']."'>\n";
 

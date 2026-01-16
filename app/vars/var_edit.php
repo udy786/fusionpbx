@@ -17,23 +17,19 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2020
+	Portions created by the Initial Developer are Copyright (C) 2008-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	require_once "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('var_add') || permission_exists('var_edit')) {
-		//access granted
-	}
-	else {
+	if (!(permission_exists('var_add') || permission_exists('var_edit'))) {
 		echo "access denied";
 		exit;
 	}
@@ -43,7 +39,7 @@
 	$text = $language->get();
 
 //set the action as an add or an update
-	if (is_uuid($_REQUEST["id"])) {
+	if (!empty($_REQUEST["id"]) && is_uuid($_REQUEST["id"])) {
 		$action = "update";
 		$var_uuid = $_REQUEST["id"];
 	}
@@ -51,25 +47,33 @@
 		$action = "add";
 	}
 
+//define the variables
+	$var_category = '';
+	$var_name = '';
+	$var_value = '';
+	$var_command = '';
+	$var_hostname = '';
+	$var_order = '';
+	$var_description = '';
+
 //set http values as php variables
-	if (count($_POST) > 0) {
+	if (!empty($_POST)) {
 		$var_category = trim($_POST["var_category"]);
 		$var_name = trim($_POST["var_name"]);
 		$var_value = trim($_POST["var_value"]);
 		$var_command = trim($_POST["var_command"]);
 		$var_hostname = trim($_POST["var_hostname"]);
-		$var_enabled = trim($_POST["var_enabled"]);
+		$var_enabled = $_POST["var_enabled"];
 		$var_order = trim($_POST["var_order"]);
 		$var_description = trim($_POST["var_description"]);
-		$var_description = str_replace("''", "'", $var_description);
 
-		if (strlen($_POST["var_category_other"]) > 0) {
+		if (!empty($_POST["var_category_other"])) {
 			$var_category = trim($_POST["var_category_other"]);
 		}
 	}
 
 //process the post
-	if (count($_POST) > 0 && strlen($_POST["persistformvar"]) == 0) {
+	if (!empty($_POST) && empty($_POST["persistformvar"])) {
 
 		//get the uuid
 			if ($action == "update") {
@@ -86,13 +90,13 @@
 
 		//check for all required data
 			$msg = '';
-			//if (strlen($var_category) == 0) { $msg .= $text['message-required'].$text['label-category']."<br>\n"; }
-			if (strlen($var_name) == 0) { $msg .= $text['message-required'].$text['label-name']."<br>\n"; }
-			//if (strlen($var_value) == 0) { $msg .= $text['message-required'].$text['label-value']."<br>\n"; }
-			//if (strlen($var_command) == 0) { $msg .= $text['message-required'].$text['label-command']."<br>\n"; }
-			if (strlen($var_enabled) == 0) { $msg .= $text['message-required'].$text['label-enabled']."<br>\n"; }
-			if (strlen($var_order) == 0) { $msg .= $text['message-required'].$text['label-order']."<br>\n"; }
-			if (strlen($msg) > 0 && strlen($_POST["persistformvar"]) == 0) {
+			if (empty($var_category)) { $msg .= $text['message-required'].$text['label-category']."<br>\n"; }
+			if (empty($var_name)) { $msg .= $text['message-required'].$text['label-name']."<br>\n"; }
+			//if (empty($var_value)) { $msg .= $text['message-required'].$text['label-value']."<br>\n"; }
+			//if (empty($var_command)) { $msg .= $text['message-required'].$text['label-command']."<br>\n"; }
+			//if (empty($var_enabled)) { $msg .= $text['message-required'].$text['label-enabled']."<br>\n"; }
+			if (empty($var_order)) { $msg .= $text['message-required'].$text['label-order']."<br>\n"; }
+			if (!empty($msg) && empty($_POST["persistformvar"])) {
 				require_once "resources/header.php";
 				require_once "resources/persist_form_var.php";
 				echo "<div align='center'>\n";
@@ -106,7 +110,7 @@
 			}
 
 		//add or update the database
-			if ($_POST["persistformvar"] != "true") {
+			if (empty($_POST["persistformvar"]) || $_POST["persistformvar"] != "true") {
 				if ($action == "add" && permission_exists('var_add')) {
 					//begin insert array
 						$var_uuid = uuid();
@@ -128,15 +132,12 @@
 						$array['vars'][0]['var_name'] = $var_name;
 						$array['vars'][0]['var_value'] = $var_value;
 						$array['vars'][0]['var_command'] = $var_command;
-						$array['vars'][0]['var_hostname'] = $var_hostname != '' ? $var_hostname : null;
+						$array['vars'][0]['var_hostname'] = !empty($var_hostname) ? $var_hostname : null;
 						$array['vars'][0]['var_enabled'] = $var_enabled;
 						$array['vars'][0]['var_order'] = $var_order;
-						$array['vars'][0]['var_description'] = base64_encode($var_description);
+						$array['vars'][0]['var_description'] = $var_description;
 
 					//execute insert/update
-						$database = new database;
-						$database->app_name = 'vars';
-						$database->app_uuid = '54e08402-c1b8-0a9d-a30a-f569fc174dd8';
 						$database->save($array);
 						unset($array);
 
@@ -155,12 +156,11 @@
 	}
 
 //pre-populate the form
-	if (is_array($_GET) && is_uuid($_GET["id"]) && $_POST["persistformvar"] != "true") {
+	if (!empty($_GET["id"]) && is_uuid($_GET["id"]) && empty($_POST["persistformvar"])) {
 		$var_uuid = $_GET["id"];
 		$sql = "select * from v_vars ";
 		$sql .= "where var_uuid = :var_uuid ";
 		$parameters['var_uuid'] = $var_uuid;
-		$database = new database;
 		$row = $database->select($sql, $parameters, 'row');
 		if (is_array($row) && @sizeof($row) != 0) {
 			$var_category = $row["var_category"];
@@ -170,10 +170,13 @@
 			$var_hostname = $row["var_hostname"];
 			$var_enabled = $row["var_enabled"];
 			$var_order = $row["var_order"];
-			$var_description = base64_decode($row["var_description"]);
+			$var_description = $row["var_description"];
 		}
 		unset($sql, $parameters);
 	}
+
+//set the defaults
+	$var_enabled = $var_enabled ?? true;
 
 //create token
 	$object = new token;
@@ -189,12 +192,13 @@
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'><b>".$text['header-variable']."</b></div>\n";
 	echo "	<div class='actions'>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','style'=>'margin-right: 15px;','link'=>'vars.php']);
-	echo button::create(['type'=>'submit','label'=>$text['button-save'],'icon'=>$_SESSION['theme']['button_icon_save'],'id'=>'btn_save']);
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','style'=>'margin-right: 15px;','link'=>'vars.php']);
+	echo button::create(['type'=>'submit','label'=>$text['button-save'],'icon'=>$settings->get('theme', 'button_icon_save'),'id'=>'btn_save']);
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
 
+	echo "<div class='card'>\n";
 	echo "<table width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
 
 	echo "<tr>\n";
@@ -206,7 +210,7 @@
 	$field_name = 'var_category';
 	$sql_where_optional = "";
 	$field_current_value = $var_category;
-	echo html_select_other($table_name, $field_name, $sql_where_optional, $field_current_value);
+	echo html_select_other($table_name, $field_name, $sql_where_optional, $field_current_value, $field_name.' asc', $text['label-other']);
 	echo $text['description-category']."\n";
 	echo "</td>\n";
 	echo "</tr>\n";
@@ -223,11 +227,11 @@
 	echo "</tr>\n";
 
 	echo "<tr>\n";
-	echo "<td class='vncellreq' valign='top' align='left' nowrap='nowrap'>\n";
+	echo "<td class='vncell' valign='top' align='left' nowrap='nowrap'>\n";
 	echo "	".$text['label-value']."\n";
 	echo "</td>\n";
 	echo "<td class='vtable' align='left'>\n";
-	echo "	<input class='formfld' type='text' name='var_value' maxlength='255' value=\"".escape($var_value)."\">\n";
+	echo "	<textarea class='formfld' name='var_value'>".escape($var_value)."</textarea>\n";
 	echo "<br />\n";
 	echo $text['description-value']."\n";
 	echo "</td>\n";
@@ -273,20 +277,17 @@
 	echo "    ".$text['label-enabled']."\n";
 	echo "</td>\n";
 	echo "<td class='vtable' align='left'>\n";
-	echo "    <select class='formfld' name='var_enabled'>\n";
-	if ($var_enabled == "true") {
-		echo "    <option value='true' selected='selected'>".$text['option-true']."</option>\n";
+	if ($input_toggle_style_switch) {
+		echo "	<span class='switch'>\n";
 	}
-	else {
-		echo "    <option value='true'>".$text['option-true']."</option>\n";
+	echo "	<select class='formfld' id='var_enabled' name='var_enabled'>\n";
+	echo "		<option value='true' ".($var_enabled == true ? "selected='selected'" : null).">".$text['option-true']."</option>\n";
+	echo "		<option value='false' ".($var_enabled == false ? "selected='selected'" : null).">".$text['option-false']."</option>\n";
+	echo "	</select>\n";
+	if ($input_toggle_style_switch) {
+		echo "		<span class='slider'></span>\n";
+		echo "	</span>\n";
 	}
-	if ($var_enabled == "false") {
-		echo "    <option value='false' selected='selected'>".$text['option-false']."</option>\n";
-	}
-	else {
-		echo "    <option value='false'>".$text['option-false']."</option>\n";
-	}
-	echo "    </select>\n";
 	echo "<br />\n";
 	echo $text['description-enabled']."\n";
 	echo "</td>\n";
@@ -329,10 +330,13 @@
 	echo "</td>\n";
 	echo "</tr>\n";
 
+	echo "</table>\n";
+	echo "</div>\n";
+
+
 	//if variable is a code then show the codec info
 	if ($var_name == "global_codec_prefs" || $var_name == "outbound_codec_prefs") {
-		echo "<tr>\n";
-		echo "<td align='left' colspan='2'>\n";
+		echo "<div class='card'>\n";
 		echo "<br />\n";
 		echo "<b>".$text['label-codec_information']."</b><br><br>\n";
 		echo "Module must be compiled and loaded. &nbsp; &nbsp; codecname[@8000h|16000h|32000h[@XXi]]<br />\n";
@@ -398,11 +402,8 @@
 		echo "	</td>\n";
 		echo "	</tr>\n";
 		echo "	</table>\n";
-		echo "</td>";
-		echo "</tr>";
+		echo "</div>\n";
 	}
-
-	echo "</table>";
 	echo "<br><br>";
 
 	if ($action == "update") {

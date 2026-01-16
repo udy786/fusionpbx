@@ -17,23 +17,19 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2020
+	Portions created by the Initial Developer are Copyright (C) 2008-2023
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	require_once "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('database_add') || permission_exists('database_edit')) {
-		//access granted
-	}
-	else {
+	if (!(permission_exists('database_add') || permission_exists('database_edit'))) {
 		echo "access denied";
 		exit;
 	}
@@ -43,7 +39,7 @@
 	$text = $language->get();
 
 //action add or update
-	if (is_uuid($_REQUEST["id"])) {
+	if (!empty($_REQUEST["id"]) && is_uuid($_REQUEST["id"])) {
 		$action = "update";
 		$database_uuid = $_REQUEST["id"];
 	}
@@ -75,7 +71,7 @@
 		$database_description = $_POST["database_description"];
 	}
 
-if (count($_POST)>0 && strlen($_POST["persistformvar"]) == 0) {
+if (count($_POST)>0 && empty($_POST["persistformvar"])) {
 
 	$msg = '';
 	if ($action == "update") {
@@ -84,13 +80,12 @@ if (count($_POST)>0 && strlen($_POST["persistformvar"]) == 0) {
 
 	//delete the database
 		if (permission_exists('database_delete')) {
-			if ($_POST['action'] == 'delete' && is_uuid($database_uuid)) {
+			if (!empty($_POST['action']) && $_POST['action'] == 'delete' && is_uuid($database_uuid)) {
 				//prepare
 					$array[0]['checked'] = 'true';
 					$array[0]['uuid'] = $database_uuid;
 				//delete
-					$obj = new databases;
-					$obj->delete($array);
+					$database->delete($array);
 				//redirect
 					header('Location: databases.php');
 					exit;
@@ -106,16 +101,16 @@ if (count($_POST)>0 && strlen($_POST["persistformvar"]) == 0) {
 		}
 
 	//check for all required data
-		//if (strlen($database_driver) == 0) { $msg .= $text['message-required'].$text['label-driver']."<br>\n"; }
-		//if (strlen($database_type) == 0) { $msg .= $text['message-required'].$text['label-type']."<br>\n"; }
-		//if (strlen($database_host) == 0) { $msg .= $text['message-required'].$text['label-host']."<br>\n"; }
-		//if (strlen($database_port) == 0) { $msg .= $text['message-required'].$text['label-port']."<br>\n"; }
-		//if (strlen($database_name) == 0) { $msg .= $text['message-required'].$text['label-name']."<br>\n"; }
-		//if (strlen($database_username) == 0) { $msg .= $text['message-required'].$text['label-username']."<br>\n"; }
-		//if (strlen($database_password) == 0) { $msg .= $text['message-required'].$text['label-password']."<br>\n"; }
-		//if (strlen($database_path) == 0) { $msg .= $text['message-required'].$text['label-path']."<br>\n"; }
-		//if (strlen($database_description) == 0) { $msg .= $text['message-required'].$text['label-description']."<br>\n"; }
-		if (strlen($msg) > 0 && strlen($_POST["persistformvar"]) == 0) {
+		//if (empty($database_driver)) { $msg .= $text['message-required'].$text['label-driver']."<br>\n"; }
+		//if (empty($database_type)) { $msg .= $text['message-required'].$text['label-type']."<br>\n"; }
+		//if (empty($database_host)) { $msg .= $text['message-required'].$text['label-host']."<br>\n"; }
+		//if (empty($database_port)) { $msg .= $text['message-required'].$text['label-port']."<br>\n"; }
+		//if (empty($database_name)) { $msg .= $text['message-required'].$text['label-name']."<br>\n"; }
+		//if (empty($database_username)) { $msg .= $text['message-required'].$text['label-username']."<br>\n"; }
+		//if (empty($database_password)) { $msg .= $text['message-required'].$text['label-password']."<br>\n"; }
+		//if (empty($database_path)) { $msg .= $text['message-required'].$text['label-path']."<br>\n"; }
+		//if (empty($database_description)) { $msg .= $text['message-required'].$text['label-description']."<br>\n"; }
+		if (!empty($msg) && empty($_POST["persistformvar"])) {
 			require_once "resources/header.php";
 			require_once "resources/persist_form_var.php";
 			echo "<div align='center'>\n";
@@ -129,7 +124,7 @@ if (count($_POST)>0 && strlen($_POST["persistformvar"]) == 0) {
 		}
 
 	//add or update the database
-	if ($_POST["persistformvar"] != "true") {
+	if (empty($_POST["persistformvar"])) {
 
 		//begin array
 			$array['databases'][0]['database_driver'] = $database_driver;
@@ -146,9 +141,6 @@ if (count($_POST)>0 && strlen($_POST["persistformvar"]) == 0) {
 			//add new uuid
 				$array['databases'][0]['database_uuid'] = uuid();
 
-				$database = new database;
-				$database->app_name = 'databases';
-				$database->app_uuid = '8d229b6d-1383-fcec-74c6-4ce1682479e2';
 				$database->save($array);
 				unset($array);
 
@@ -165,9 +157,7 @@ if (count($_POST)>0 && strlen($_POST["persistformvar"]) == 0) {
 			//add uuid to update
 				$array['databases'][0]['database_uuid'] = $database_uuid;
 
-				$database = new database;
-				$database->app_name = 'databases';
-				$database->app_uuid = '8d229b6d-1383-fcec-74c6-4ce1682479e2';
+			//save to the database
 				$database->save($array);
 				unset($array);
 
@@ -184,12 +174,11 @@ if (count($_POST)>0 && strlen($_POST["persistformvar"]) == 0) {
 }
 
 //pre-populate the form
-	if (count($_GET)>0 && $_POST["persistformvar"] != "true") {
+	if (count($_GET)>0 && empty($_POST["persistformvar"])) {
 		$database_uuid = $_GET["id"];
 		$sql = "select * from v_databases ";
 		$sql .= "where database_uuid = :database_uuid ";
 		$parameters['database_uuid'] = $database_uuid;
-		$database = new database;
 		$row = $database->select($sql, $parameters, 'row');
 		if (is_array($row) && sizeof($row) != 0) {
 			$database_driver = $row["database_driver"];
@@ -231,11 +220,11 @@ if (count($_POST)>0 && strlen($_POST["persistformvar"]) == 0) {
 	}
 	echo "	</div>\n";
 	echo "	<div class='actions'>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','style'=>'margin-right: 15px;','link'=>'databases.php']);
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','style'=>'margin-right: 15px;','link'=>'databases.php']);
 	if ($action == 'update' && permission_exists('database_delete')) {
-		echo button::create(['type'=>'button','label'=>$text['button-delete'],'icon'=>$_SESSION['theme']['button_icon_delete'],'name'=>'btn_delete','style'=>'margin-right: 15px;','onclick'=>"modal_open('modal-delete','btn_delete');"]);
+		echo button::create(['type'=>'button','label'=>$text['button-delete'],'icon'=>$settings->get('theme', 'button_icon_delete'),'name'=>'btn_delete','style'=>'margin-right: 15px;','onclick'=>"modal_open('modal-delete','btn_delete');"]);
 	}
-	echo button::create(['type'=>'submit','label'=>$text['button-save'],'icon'=>$_SESSION['theme']['button_icon_save'],'id'=>'btn_save','name'=>'action','value'=>'save']);
+	echo button::create(['type'=>'submit','label'=>$text['button-save'],'icon'=>$settings->get('theme', 'button_icon_save'),'id'=>'btn_save','name'=>'action','value'=>'save']);
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
@@ -252,6 +241,7 @@ if (count($_POST)>0 && strlen($_POST["persistformvar"]) == 0) {
 	}
 	echo "<br /><br />\n";
 
+	echo "<div class='card'>\n";
 	echo "<table width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
 
 	echo "<tr>\n";
@@ -406,6 +396,7 @@ if (count($_POST)>0 && strlen($_POST["persistformvar"]) == 0) {
 	echo "</tr>\n";
 
 	echo "</table>";
+	echo "</div>";
 	echo "<br><br>";
 
 	if ($action == "update") {

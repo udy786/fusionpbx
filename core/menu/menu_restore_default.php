@@ -24,15 +24,13 @@
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
+
 //check permissions
-	if (!$included) {
-		include "root.php";
-		require_once "resources/require.php";
+	if(!defined('STDIN')) {
 		require_once "resources/check_auth.php";
-		if (permission_exists('menu_restore')) {
-			//access granted
-		}
-		else {
+		if (!permission_exists('menu_restore')) {
 			echo "access denied";
 			return;
 		}
@@ -43,30 +41,32 @@
 	$text = $language->get();
 
 //get the http value and set as a php variable
-	if (!$included) {
+	if (!empty($_REQUEST["menu_uuid"])) {
 		$menu_uuid = $_REQUEST["menu_uuid"];
+	}
+	if (!empty($_REQUEST["menu_language"])) {
 		$menu_language = $_REQUEST["menu_language"];
 	}
 
-//menu restore default
-	require_once "resources/classes/menu.php";
-	$menu = new menu;
+//create the menu object
+ 	$menu = new menu;
+
+ //menu restore default
 	$menu->menu_uuid = $menu_uuid;
 	$menu->menu_language = $menu_language;
-	$menu->delete_unprotected();
-	$menu->restore();
-	unset($menu);
+	$menu->restore_delete();
+	$menu->restore_default();
 
 //get the menu array and save it to the session
-	$menu = new menu;
-	$menu->menu_uuid = $_SESSION['domain']['menu']['uuid'];
+	$menu->menu_uuid = $settings->get('domain', 'menu') ?? null;
 	$_SESSION['menu']['array'] = $menu->menu_array();
-	unset($menu);
 
 //redirect
-	if (!$included) {
+	if(!defined('STDIN')) {
 		//show a message to the user
-		message::add($text['message-restore']);
+		if (empty($included) || !$included) {
+			message::add($text['message-restore']);
+		}
 		header("Location: ".PROJECT_PATH."/core/menu/menu_edit.php?id=".urlencode($menu_uuid));
 		return;
 	}

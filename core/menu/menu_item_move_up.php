@@ -23,16 +23,15 @@
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
-include "root.php";
-require_once "resources/require.php";
-require_once "resources/check_auth.php";
-if (permission_exists('menu_edit')) {
-	//access granted
-}
-else {
-	echo "access denied";
-	return;
-}
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
+	require_once "resources/check_auth.php";
+
+//check permissions
+	if (!permission_exists('menu_edit')) {
+		echo "access denied";
+		return;
+	}
 
 //add multi-lingual support
 	$language = new text;
@@ -56,9 +55,6 @@ if (count($_GET)>0) {
 			$sql .= "and menu_order = :menu_order ";
 			$parameters['domain_uuid'] = $domain_uuid;
 			$parameters['menu_order'] = $menu_order - 1;
-			$database = new database;
-			$database->app_name = 'menu';
-			$database->app_uuid = 'f4b3b3d2-6287-489c-2a00-64529e46f2d7';
 			$database->execute($sql, $parameters);
 			unset($sql, $parameters);
 
@@ -69,9 +65,6 @@ if (count($_GET)>0) {
 			$sql .= "and menu_item_id = :menu_item_id ";
 			$parameters['domain_uuid'] = $domain_uuid;
 			$parameters['menu_item_id'] = $menu_item_id;
-			$database = new database;
-			$database->app_name = 'menu';
-			$database->app_uuid = 'f4b3b3d2-6287-489c-2a00-64529e46f2d7';
 			$database->execute($sql, $parameters);
 			unset($sql, $parameters);
 

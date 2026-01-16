@@ -17,23 +17,19 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2020
+	Portions created by the Initial Developer are Copyright (C) 2023
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	include "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
-	
+
 //check permissions
-	if (permission_exists('menu_add') || permission_exists('menu_edit')) {
-		//access granted
-	}
-	else {
+	if (!(permission_exists('menu_add') || permission_exists('menu_edit'))) {
 		echo "access denied";
 		return;
 	}
@@ -50,12 +46,12 @@
 
 //get the menu array and save it to the session
 	$menu = new menu;
-	$menu->menu_uuid = $_SESSION['domain']['menu']['uuid'];
+	$menu->menu_uuid = $settings->get('domain', 'menu');
 	$_SESSION['menu']['array'] = $menu->menu_array();
 	unset($menu);
 
 //redirect the user
-	message::add($text['message-reload']);
+	//message::add($text['message-reload']);
 	header("Location: ".PROJECT_PATH."/core/menu/menu_edit.php?id=".urlencode($menu_uuid));
 	return;
 

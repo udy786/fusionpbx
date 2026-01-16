@@ -17,19 +17,18 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2017
+	Portions created by the Initial Developer are Copyright (C) 2017-2024
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	require_once "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
+	require_once "resources/check_auth.php";
 
 //check permisions
-	require_once "resources/check_auth.php";
 	if (permission_exists('xml_cdr_view')) {
 		//access granted
 	}
@@ -39,7 +38,11 @@
 	}
 
 //download
-	$obj = new xml_cdr;
-	$obj->download($_GET['id']);
+	if (is_uuid($_GET['id'])) {
+		$obj = new xml_cdr;
+		$obj->recording_uuid = $_GET['id'];
+		$obj->binary = isset($_GET['t']) && $_GET['t'] == 'bin' ? true : false;
+		$obj->download();
+	}
 
 ?>

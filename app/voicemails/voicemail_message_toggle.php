@@ -23,16 +23,16 @@
  Contributor(s):
  Mark J Crane <markjcrane@fusionpbx.com>
 */
-require_once "root.php";
-require_once "resources/require.php";
-require_once "resources/check_auth.php";
-if (permission_exists('voicemail_message_view')) {
-	//access granted
-}
-else {
-	echo "access denied";
-	exit;
-}
+
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
+	require_once "resources/check_auth.php";
+
+//check permissions
+	if (!permission_exists('voicemail_message_view')) {
+		echo "access denied";
+		exit;
+	}
 
 //add multi-lingual support
 	$language = new text;
@@ -44,12 +44,10 @@ else {
 //toggle the voicemail message
 	$toggled = 0;
 	if (is_array($voicemail_messages) && sizeof($voicemail_messages) > 0) {
-		require_once "resources/classes/voicemail.php";
 		foreach ($voicemail_messages as $voicemail_uuid => $voicemail_message_uuids) {
 			foreach ($voicemail_message_uuids as $voicemail_message_uuid) {
 				if (is_uuid($voicemail_uuid) && is_uuid($voicemail_message_uuid)) {
 					$voicemail = new voicemail;
-					$voicemail->db = $db;
 					$voicemail->domain_uuid = $_SESSION['domain_uuid'];
 					$voicemail->voicemail_uuid = $voicemail_uuid;
 					$voicemail->voicemail_message_uuid = $voicemail_message_uuid;

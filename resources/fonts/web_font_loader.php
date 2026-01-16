@@ -1,13 +1,13 @@
 <?php
-include "root.php";
-require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 
 $font_loader_version = ($_GET['v'] != '') ? $_GET['v'] : 1;
 
 header("Content-type: text/javascript; charset: UTF-8");
 
 //web font loader
-	if ($_SESSION['theme']['font_loader']['text'] == 'true') {
+	if ($settings->get('theme', 'font_loader') == 'true') {
 		//parse font names
 			if (is_array($_SESSION['theme']) && sizeof($_SESSION['theme']) > 0) {
 				foreach ($_SESSION['theme'] as $subcategory => $type) {
@@ -54,7 +54,7 @@ header("Content-type: text/javascript; charset: UTF-8");
 
 		//load fonts
 			if (is_array($fonts) && sizeof($fonts) > 0) {
-				if ($_SESSION['theme']['font_retrieval']['text'] == 'asynchronous') {
+				if ($settings->get('theme', 'font_retrieval') == 'asynchronous') {
 					?>
 					WebFontConfig = {
 						google: {
@@ -80,31 +80,3 @@ header("Content-type: text/javascript; charset: UTF-8");
 			}
 	}
 ?>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

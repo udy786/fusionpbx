@@ -17,7 +17,7 @@
 
  The Initial Developer of the Original Code is
  Mark J Crane <markjcrane@fusionpbx.com>
- Portions created by the Initial Developer are Copyright (C) 2008-2019
+ Portions created by the Initial Developer are Copyright (C) 2008-2025
  the Initial Developer. All Rights Reserved.
 
  Contributor(s):
@@ -25,14 +25,19 @@
 */
 
 //define the vars class
-if (!class_exists('vars')) {
 	class vars {
+
+		/**
+		 * declare constant variables
+		 */
+		const app_name = 'vars';
+		const app_uuid = '54e08402-c1b8-0a9d-a30a-f569fc174dd8';
 
 		/**
 		 * declare private variables
 		 */
-		private $app_name;
-		private $app_uuid;
+
+		private $database;
 		private $permission_prefix;
 		private $list_page;
 		private $table;
@@ -41,34 +46,34 @@ if (!class_exists('vars')) {
 		private $toggle_values;
 
 		/**
-		 * called when the object is created
+		 * Initializes the object with setting array.
+		 *
+		 * @param array $setting_array An array containing settings for domain, user, and database connections. Defaults to
+		 *                             an empty array.
+		 *
+		 * @return void
 		 */
-		public function __construct() {
+		public function __construct(array $setting_array = []) {
+			//set objects
+			$this->database = $setting_array['database'] ?? database::new();
 
 			//assign private variables
-				$this->app_name = 'vars';
-				$this->app_uuid = '54e08402-c1b8-0a9d-a30a-f569fc174dd8';
-				$this->permission_prefix = 'var_';
-				$this->list_page = 'vars.php';
-				$this->table = 'vars';
-				$this->uuid_prefix = 'var_';
-				$this->toggle_field = 'var_enabled';
-				$this->toggle_values = ['true','false'];
-
+			$this->permission_prefix = 'var_';
+			$this->list_page = 'vars.php';
+			$this->table = 'vars';
+			$this->uuid_prefix = 'var_';
+			$this->toggle_field = 'var_enabled';
+			$this->toggle_values = ['true','false'];
 		}
 
 		/**
-		 * called when there are no references to a particular object
-		 * unset the variables used in the class
-		 */
-		public function __destruct() {
-			foreach ($this as $key => $value) {
-				unset($this->$key);
-			}
-		}
-
-		/**
-		 * delete records
+		 * Deletes one or more records.
+		 *
+		 * @param array $records An array of record IDs to delete, where each ID is an associative array
+		 *                       containing 'uuid' and 'checked' keys. The 'checked' value indicates
+		 *                       whether the corresponding checkbox was checked for deletion.
+		 *
+		 * @return void No return value; this method modifies the database state and sets a message.
 		 */
 		public function delete($records) {
 			if (permission_exists($this->permission_prefix.'delete')) {
@@ -86,23 +91,20 @@ if (!class_exists('vars')) {
 					}
 
 				//delete multiple records
-					if (is_array($records) && @sizeof($records) != 0) {
+					if (!empty($records) && @sizeof($records) != 0) {
 
 						//build the delete array
 							foreach ($records as $x => $record) {
-								if ($record['checked'] == 'true' && is_uuid($record['uuid'])) {
+								if (!empty($record['checked']) && $record['checked'] == 'true' && is_uuid($record['uuid'])) {
 									$array[$this->table][$x][$this->uuid_prefix.'uuid'] = $record['uuid'];
 								}
 							}
 
 						//delete the checked rows
-							if (is_array($array) && @sizeof($array) != 0) {
+							if (!empty($array) && @sizeof($array) != 0) {
 
 								//execute delete
-									$database = new database;
-									$database->app_name = $this->app_name;
-									$database->app_uuid = $this->app_uuid;
-									$database->delete($array);
+									$this->database->delete($array);
 									unset($array);
 
 								//unset the user defined variables
@@ -120,7 +122,13 @@ if (!class_exists('vars')) {
 		}
 
 		/**
-		 * toggle records
+		 * Toggles the state of one or more records.
+		 *
+		 * @param array $records  An array of record IDs to delete, where each ID is an associative array
+		 *                        containing 'uuid' and 'checked' keys. The 'checked' value indicates
+		 *                        whether the corresponding checkbox was checked for deletion.
+		 *
+		 * @return void No return value; this method modifies the database state and sets a message.
 		 */
 		public function toggle($records) {
 			if (permission_exists($this->permission_prefix.'edit')) {
@@ -138,20 +146,19 @@ if (!class_exists('vars')) {
 					}
 
 				//toggle the checked records
-					if (is_array($records) && @sizeof($records) != 0) {
+					if (!empty($records) && @sizeof($records) != 0) {
 
 						//get current toggle state
 							foreach ($records as $x => $record) {
-								if ($record['checked'] == 'true' && is_uuid($record['uuid'])) {
+								if (!empty($record['checked']) && $record['checked'] == 'true' && is_uuid($record['uuid'])) {
 									$uuids[] = "'".$record['uuid']."'";
 								}
 							}
-							if (is_array($uuids) && @sizeof($uuids) != 0) {
+							if (!empty($uuids) && @sizeof($uuids) != 0) {
 								$sql = "select ".$this->uuid_prefix."uuid as uuid, ".$this->toggle_field." as toggle from v_".$this->table." ";
 								$sql .= "where ".$this->uuid_prefix."uuid in (".implode(', ', $uuids).") ";
-								$database = new database;
-								$rows = $database->select($sql, $parameters, 'all');
-								if (is_array($rows) && @sizeof($rows) != 0) {
+								$rows = $this->database->select($sql, null, 'all');
+								if (!empty($rows) && @sizeof($rows) != 0) {
 									foreach ($rows as $row) {
 										$states[$row['uuid']] = $row['toggle'];
 									}
@@ -168,13 +175,11 @@ if (!class_exists('vars')) {
 							}
 
 						//save the changes
-							if (is_array($array) && @sizeof($array) != 0) {
+							if (!empty($array) && @sizeof($array) != 0) {
 
 								//save the array
-									$database = new database;
-									$database->app_name = $this->app_name;
-									$database->app_uuid = $this->app_uuid;
-									$database->save($array);
+
+									$this->database->save($array);
 									unset($array);
 
 								//unset the user defined variables
@@ -193,7 +198,13 @@ if (!class_exists('vars')) {
 		}
 
 		/**
-		 * copy records
+		 * Copies one or more records
+		 *
+		 * @param array $records  An array of record IDs to delete, where each ID is an associative array
+		 *                        containing 'uuid' and 'checked' keys. The 'checked' value indicates
+		 *                        whether the corresponding checkbox was checked for deletion.
+		 *
+		 * @return void No return value; this method modifies the database state and sets a message.
 		 */
 		public function copy($records) {
 			if (permission_exists($this->permission_prefix.'add')) {
@@ -211,30 +222,37 @@ if (!class_exists('vars')) {
 					}
 
 				//copy the checked records
-					if (is_array($records) && @sizeof($records) != 0) {
+					if (!empty($records) && @sizeof($records) != 0) {
 
 						//get checked records
 							foreach ($records as $x => $record) {
-								if ($record['checked'] == 'true' && is_uuid($record['uuid'])) {
+								if (!empty($record['checked']) && $record['checked'] == 'true' && is_uuid($record['uuid'])) {
 									$uuids[] = "'".$record['uuid']."'";
 								}
 							}
 
 						//create insert array from existing data
-							if (is_array($uuids) && @sizeof($uuids) != 0) {
+							if (!empty($uuids) && @sizeof($uuids) != 0) {
 								$sql = "select * from v_".$this->table." ";
 								$sql .= "where ".$this->uuid_prefix."uuid in (".implode(', ', $uuids).") ";
-								$database = new database;
-								$rows = $database->select($sql, $parameters, 'all');
-								if (is_array($rows) && @sizeof($rows) != 0) {
+								$rows = $this->database->select($sql, null, 'all');
+								if (!empty($rows) && @sizeof($rows) != 0) {
 									foreach ($rows as $x => $row) {
+
+										//convert boolean values to a string
+											foreach($row as $key => $value) {
+												if (gettype($value) == 'boolean') {
+													$value = $value ? 'true' : 'false';
+													$row[$key] = $value;
+												}
+											}
 
 										//copy data
 											$array[$this->table][$x] = $row;
 
 										//overwrite
 											$array[$this->table][$x][$this->uuid_prefix.'uuid'] = uuid();
-											$array[$this->table][$x]['var_description'] = base64_encode(trim(base64_decode($row['var_description'])).' ('.$text['label-copy'].')');
+											$array[$this->table][$x]['var_description'] = trim($row['var_description'] ?? '').trim(' ('.$text['label-copy'].')');
 
 									}
 								}
@@ -242,13 +260,11 @@ if (!class_exists('vars')) {
 							}
 
 						//save the changes and set the message
-							if (is_array($array) && @sizeof($array) != 0) {
+							if (!empty($array) && @sizeof($array) != 0) {
 
 								//save the array
-									$database = new database;
-									$database->app_name = $this->app_name;
-									$database->app_uuid = $this->app_uuid;
-									$database->save($array);
+
+									$this->database->save($array);
 									unset($array);
 
 								//unset the user defined variables
@@ -268,6 +284,3 @@ if (!class_exists('vars')) {
 		}
 
 	}
-}
-
-?>

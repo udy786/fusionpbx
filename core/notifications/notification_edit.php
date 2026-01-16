@@ -24,16 +24,15 @@ Contributor(s):
 Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-require_once "root.php";
-require_once "resources/require.php";
-require_once "resources/check_auth.php";
-if (if_group('superadmin')) {
-	//access granted
-}
-else {
-	echo "access denied";
-	exit;
-}
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
+	require_once "resources/check_auth.php";
+
+//check permissions
+	if (if_group('superadmin')) {
+		echo "access denied";
+		exit;
+	}
 
 //add multi-lingual support
 	$language = new text;
@@ -41,7 +40,6 @@ else {
 
 // retrieve software uuid
 	$sql = "select software_uuid, software_url, software_version from v_software";
-	$database = new database;
 	$row = $database->select($sql, null, 'row');
 	if (is_array($row) && sizeof($row) != 0) {
 		$software_uuid = $row["software_uuid"];
@@ -72,9 +70,9 @@ else {
 			$web_server = $_SERVER['SERVER_SOFTWARE'];
 
 			// switch version
-			$fp = event_socket_create($_SESSION['event_socket_ip_address'], $_SESSION['event_socket_port'], $_SESSION['event_socket_password']);
-			if ($fp) {
-				$switch_result = event_socket_request($fp, 'api version');
+			$esl = event_socket::create();
+			if ($esl->is_connected()) {
+				$switch_result = event_socket::api('version');
 			}
 			$switch_ver = trim($switch_result);
 
@@ -84,7 +82,6 @@ else {
 				case "mysql" :	$sql = "select version();";			break;
 				case "sqlite" :	$sql = "select sqlite_version();";	break;
 			}
-			$database = new database;
 			$db_ver = $database->select($sql, null, 'column');
 			unset($sql);
 
@@ -143,17 +140,16 @@ else {
 		}
 
 		// retrieve submitted values
-		$project_notifications = check_str($_POST["project_notifications"]);
-		$project_security = check_str($_POST["project_security"]);
-		$project_releases = check_str($_POST["project_releases"]);
-		$project_events = check_str($_POST["project_events"]);
-		$project_news = check_str($_POST["project_news"]);
-		$project_notification_method = check_str($_POST["project_notification_method"]);
-		$project_notification_recipient = check_str($_POST["project_notification_recipient"]);
+		$project_notifications = $_POST["project_notifications"] ?? '';
+		$project_security = $_POST["project_security"] ?? '';
+		$project_releases = $_POST["project_releases"] ?? '';
+		$project_events = $_POST["project_events"] ?? '';
+		$project_news = $_POST["project_news"] ?? '';
+		$project_notification_method = $_POST["project_notification_method"] ?? '';
+		$project_notification_recipient = $_POST["project_notification_recipient"] ?? '';
 
 		// get local project notification participation flag
 		$sql = "select project_notifications from v_notifications";
-		$database = new database;
 		$current_project_notifications = $database->select($sql, null, 'row');
 		unset($sql);
 
@@ -180,7 +176,6 @@ else {
 				if ($response['result'] == 'deleted') {
 					// set local project notification participation flag to false
 					$sql = "update v_notifications set project_notifications = 'false'";
-					$database = new database;
 					$database->execute($sql);
 					unset($sql);
 				}
@@ -240,7 +235,6 @@ else {
 		if ($response['result'] == 'updated' || $response['result'] == 'inserted') {
 			// set local project notification participation flag to true
 			$sql = "update v_notifications set project_notifications = 'true'";
-			$database = new database;
 			$database->execute($sql);
 			unset($sql);
 			// set message
@@ -267,7 +261,6 @@ else {
 
 		// check local project notification participation flag
 		$sql = "select project_notifications from v_notifications";
-		$database = new database;
 		$row = $database->select($sql, null, 'row');
 		if (is_array($row) && sizeof($row) != 0) {
 			$setting["project_notifications"] = $row["project_notifications"];

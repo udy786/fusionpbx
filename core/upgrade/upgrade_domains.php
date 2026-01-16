@@ -26,17 +26,13 @@
 
 //check the permission
 	if(defined('STDIN')) {
-		$document_root = str_replace("\\", "/", $_SERVER["PHP_SELF"]);
-		preg_match("/^(.*)\/core\/.*$/", $document_root, $matches);
-		$document_root = $matches[1];
-		set_include_path($document_root);
-		require_once "resources/require.php";
-		$_SERVER["DOCUMENT_ROOT"] = $document_root;
+		//includes files
+		require_once dirname(__DIR__, 2) . "/resources/require.php";
 		$display_type = 'text'; //html, text
 	}
 	else if (!$included) {
-		include "root.php";
-		require_once "resources/require.php";
+		//includes files
+		require_once dirname(__DIR__, 2) . "/resources/require.php";
 		require_once "resources/check_auth.php";
 		if (permission_exists('upgrade_apps') || if_group("superadmin")) {
 			//echo "access granted";
@@ -49,10 +45,7 @@
 	}
 
 //run all app_defaults.php files
-	require_once "resources/classes/config.php";
-	require_once "resources/classes/domains.php";
 	$domain = new domains;
-	$domain->display_type = $display_type;
 	$domain->upgrade();
 
 ?>

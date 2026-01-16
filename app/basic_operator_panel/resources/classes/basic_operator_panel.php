@@ -27,35 +27,68 @@
 /**
  * Define the operator_panel class
  */
-if (!class_exists('basic_operator_panel')) {
 	class basic_operator_panel {
 
 		/**
-		 * Define the variables
+		 * declare constant variables
+		 */
+		const app_name = 'basic_operator_panel';
+		const app_uuid = 'dd3d173a-5d51-4231-ab22-b18c5b712bb2';
+
+		/**
+		 * Set in the constructor. Must be a database object and cannot be null.
+		 * @var database Database Object
+		 */
+		private $database;
+
+		/**
+		 * Settings object set in the constructor. Must be a settings object and cannot be null.
+		 * @var settings Settings Object
+		 */
+		private $settings;
+
+		/**
+		 * Domain UUID set in the constructor. This can be passed in through the $settings_array associative array or set in the session global array
+		 * @var string
 		 */
 		public $domain_uuid;
 
 		/**
-		 * Called when the object is created
+		 * User UUID set in the constructor. This can be passed in through the $settings_array associative array or set in the session global array
+		 * @var string
 		 */
-		public function __construct() {
-			if (!isset($this->domain_uuid)) {
-				$this->domain_uuid = $_SESSION['domain_uuid'];
-			}
+		private $user_uuid;
+
+		/**
+		 * Domain name set in the constructor. This can be passed in through the $settings_array associative array or set in the session global array
+		 * @var string
+		 */
+		private $domain_name;
+
+		/**
+		 * Initializes the object with domain and user UUIDs, domain name, and database objects.
+		 *
+		 * @param array $setting_array An optional array containing settings for this object. Defaults to an empty array.
+		 */
+		public function __construct(array $setting_array = []) {
+			//set domain and user UUIDs
+			$this->domain_uuid = $setting_array['domain_uuid'] ?? $_SESSION['domain_uuid'] ?? '';
+			$this->user_uuid = $setting_array['user_uuid'] ?? $_SESSION['user_uuid'] ?? '';
+
+			//set domain_name
+			$this->domain_name = $setting_array['domain_name'] ?? $_SESSION['domain_name'] ?? '';
+
+			//set objects
+			$config = $setting_array['config'] ?? config::load();
+			$this->database = $setting_array['database'] ?? database::new(['config' => $config]);
+			$this->settings = $setting_array['settings'] ?? new settings(['database' => $this->database, 'domain_uuid' => $this->domain_uuid, 'user_uuid' => $this->user_uuid]);
 		}
 
 		/**
-		 * Called when there are no references to a particular object
-		 * unset the variables used in the class
-		 */
-		public function __destruct() {
-			foreach ($this as $key => $value) {
-				unset($this->$key);
-			}
-		}
-
-		/**
-		 * Get the call activity
+		 * Handles the call activity by retrieving extensions and their user status,
+		 * sending a command to retrieve active calls, and building a response array.
+		 *
+		 * @return mixed The response array containing extension details and active call information.
 		 */
 		public function call_activity() {
 
@@ -67,7 +100,6 @@ if (!class_exists('basic_operator_panel')) {
 				$sql .= "e.extension, ";
 				$sql .= "e.number_alias, ";
 				$sql .= "e.effective_caller_id_name, ";
-				$sql .= "lower(e.effective_caller_id_name) as filter_name, ";
 				$sql .= "e.effective_caller_id_number, ";
 				$sql .= "e.call_group, ";
 				$sql .= "e.description, ";
@@ -82,13 +114,12 @@ if (!class_exists('basic_operator_panel')) {
 				$sql .= "e.domain_uuid = :domain_uuid ";
 				$sql .= "order by ";
 				$sql .= "e.extension asc ";
-				$parameters['domain_uuid'] = $_SESSION['domain_uuid'];
-				$database = new database;
-				$extensions = $database->select($sql, $parameters);
+				$parameters['domain_uuid'] = $this->domain_uuid;
+				$extensions = $this->database->select($sql, $parameters);
 
 			//store extension status by user uuid
 				if (isset($extensions)) {
-					foreach($extensions as &$row) {
+					foreach ($extensions as $row) {
 						if ($row['user_uuid'] != '') {
 							$ext_user_status[$row['user_uuid']] = $row['user_status'];
 							unset($row['user_status']);
@@ -97,18 +128,20 @@ if (!class_exists('basic_operator_panel')) {
 				}
 
 			//send the command
-				$fp = event_socket_create($_SESSION['event_socket_ip_address'], $_SESSION['event_socket_port'], $_SESSION['event_socket_password']);
-				if ($fp) {
-					$switch_result = event_socket_request($fp, 'api show channels as json');
+				$switch_result = event_socket::api('show channels as json');
+				if ($switch_result !== false) {
+					$fp = true;
 					$json_array = json_decode($switch_result, true);
+				} else {
+					$fp = false;
 				}
 
 			//build the response
 				$x = 0;
 				if (isset($extensions)) {
-					foreach($extensions as &$row) {
+					foreach ($extensions as $row) {
 						$user = $row['extension'];
-						if (strlen($row['number_alias']) >0 ) {
+						if (!empty($row['number_alias'])) {
 							$user = $row['number_alias'];
 						}
 
@@ -152,13 +185,13 @@ if (!class_exists('basic_operator_panel')) {
 						//add the active call details
 							$found = false;
 							if (isset($json_array['rows'])) {
-								foreach($json_array['rows'] as &$field) {
+								foreach ($json_array['rows'] as $field) {
 									$presence_id = $field['presence_id'];
 									$presence = explode("@", $presence_id);
 									$presence_id = $presence[0];
-									$presence_domain = $presence[1];
+									$presence_domain = $presence[1] ?? '';
 									if ($user == $presence_id) {
-										if ($presence_domain == $_SESSION['domain_name']) {
+										if ($presence_domain == $this->domain_name) {
 											$found = true;
 											break;
 										}
@@ -216,8 +249,10 @@ if (!class_exists('basic_operator_panel')) {
 									if ($fp) {
 										if (is_uuid($field['uuid'])) {
 											$switch_cmd = 'uuid_dump '.$field['uuid'].' json';
-											$dump_result = event_socket_request($fp, 'api '.$switch_cmd);
-											$dump_array = json_decode($dump_result, true);
+											$dump_result = event_socket::api($switch_cmd);
+											if ($dump_result !== false) {
+												$dump_array = json_decode($dump_result, true);
+											}
 											if (is_array($dump_array)) {
 												foreach ($dump_array as $dump_var_name => $dump_var_value) {
 													$array[$x][$dump_var_name] = $dump_var_value;
@@ -252,6 +287,3 @@ if (!class_exists('basic_operator_panel')) {
 				return $result;
 		}
 	}
-}
-
-?>

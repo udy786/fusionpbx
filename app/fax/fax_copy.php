@@ -17,24 +17,20 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2019
+	Portions created by the Initial Developer are Copyright (C) 2008-2024
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	include "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 	require_once "resources/paging.php";
 
 //check permissions
-	if (permission_exists('fax_extension_copy')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('fax_extension_copy')) {
 		echo "access denied";
 		exit;
 	}
@@ -54,7 +50,6 @@
 			$sql .= "and fax_uuid = :fax_uuid ";
 			$parameters['domain_uuid'] = $_SESSION['domain_uuid'];
 			$parameters['fax_uuid'] = $fax_uuid;
-			$database = new database;
 			$row = $database->select($sql, $parameters, 'row');
 			if (is_array($row) && @sizeof($row) != 0) {
 				$fax_extension = $row["fax_extension"];
@@ -102,18 +97,15 @@
 			$array['fax'][0]['fax_pin_number'] = $fax_pin_number;
 			$array['fax'][0]['fax_caller_id_name'] = $fax_caller_id_name;
 			$array['fax'][0]['fax_caller_id_number'] = $fax_caller_id_number;
-			if (strlen($fax_forward_number) > 0) {
+			if (!empty($fax_forward_number)) {
 				$array['fax'][0]['fax_forward_number'] = $fax_forward_number;
 			}
 			$array['fax'][0]['fax_description'] = $fax_description;
 
 		//execute insert
-			$p = new permissions;
+			$p = permissions::new();
 			$p->add('fax_add', 'temp');
 
-			$database = new database;
-			$database->app_name = 'fax';
-			$database->app_uuid = '24108154-4ac3-1db6-1551-4731703a4440';
 			$database->save($array);
 			unset($array);
 

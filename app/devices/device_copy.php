@@ -17,23 +17,19 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2019
+	Portions created by the Initial Developer are Copyright (C) 2008-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	include "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('device_add')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('device_add')) {
 		echo "access denied";
 		exit;
 	}
@@ -45,22 +41,21 @@
 //set the http get/post variable(s) to a php variable
 	if (is_uuid($_REQUEST["id"]) && isset($_REQUEST["mac"])) {
 		$device_uuid = $_REQUEST["id"];
-		$device_mac_address = $_REQUEST["mac"];
-		$device_mac_address = preg_replace('#[^a-fA-F0-9./]#', '', $device_mac_address);
+		$device_address = $_REQUEST["mac"];
+		$device_address = preg_replace('#[^a-fA-F0-9./]#', '', $device_address);
 	}
 
 //set the default
 	$save = true;
 
-//check to see if the mac address exists
-	if ($device_mac_address == "" || $device_mac_address == "000000000000") {
+//check to see if the device address exists
+	if ($device_address == "" || $device_address == "000000000000") {
 		//allow duplicates to be used as templaes
 	}
 	else {
 		$sql = "select count(*) from v_devices ";
-		$sql .= "where device_mac_address = :device_mac_address ";
-		$parameters['device_mac_address'] = $device_mac_address;
-		$database = new database;
+		$sql .= "where device_address = :device_address ";
+		$parameters['device_address'] = $device_address;
 		$num_rows = $database->select($sql, $parameters, 'column');
 		if ($num_rows == 0) {
 			$save = true;
@@ -73,10 +68,31 @@
 	}
 
 //get the device
-	$sql = "select * from v_devices ";
+	$sql = "select ";
+	$sql .= "device_uuid, ";
+	$sql .= "domain_uuid, ";
+	$sql .= "device_profile_uuid, ";
+	$sql .= "device_address, ";
+	$sql .= "device_label, ";
+	$sql .= "device_vendor, ";
+	$sql .= "device_location, ";
+	$sql .= "device_model, ";
+	$sql .= "device_firmware_version, ";
+	$sql .= "cast(device_enabled as text), ";
+	$sql .= "device_template, ";
+	$sql .= "device_user_uuid, ";
+	$sql .= "device_username, ";
+	$sql .= "device_password, ";
+	$sql .= "device_uuid_alternate, ";
+	$sql .= "device_description, ";
+	$sql .= "device_provisioned_date, ";
+	$sql .= "device_provisioned_method, ";
+	$sql .= "device_provisioned_ip, ";
+	$sql .= "device_provisioned_agent, ";
+	$sql .= "device_serial_number ";
+	$sql .= "from v_devices ";
 	$sql .= "where device_uuid = :device_uuid ";
 	$parameters['device_uuid'] = $device_uuid;
-	$database = new database;
 	$devices = $database->select($sql, $parameters, 'all');
 	unset($sql, $parameters);
 
@@ -85,7 +101,6 @@
 	$sql .= "where device_uuid = :device_uuid ";
 	$sql .= "order by line_number asc ";
 	$parameters['device_uuid'] = $device_uuid;
-	$database = new database;
 	$device_lines = $database->select($sql, $parameters, 'all');
 	unset($sql, $parameters);
 
@@ -101,7 +116,6 @@
 	$sql .= "else 100 END, ";
 	$sql .= "cast(device_key_id as int) asc ";
 	$parameters['device_uuid'] = $device_uuid;
-	$database = new database;
 	$device_keys = $database->select($sql, $parameters, 'all');
 	unset($sql, $parameters);
 
@@ -110,7 +124,6 @@
 	$sql .= "where device_uuid = :device_uuid ";
 	$sql .= "order by device_setting_subcategory asc ";
 	$parameters['device_uuid'] = $device_uuid;
-	$database = new database;
 	$device_settings = $database->select($sql, $parameters, 'all');
 	unset($sql, $parameters);
 
@@ -152,15 +165,15 @@
 		}
 	}
 
-//normalize the mac address
-	if (isset($device_mac_address) && strlen($device_mac_address) > 0) {
-		$device_mac_address = strtolower($device_mac_address);
-		$device_mac_address = preg_replace('#[^a-fA-F0-9./]#', '', $device_mac_address);
+//normalize the device address
+	if (isset($device_address) && !empty($device_address)) {
+		$device_address = strtolower($device_address);
+		$device_address = preg_replace('#[^a-fA-F0-9./]#', '', $device_address);
 	}
 
 //create the device array
 	$device = $devices[0];
-	$device["device_mac_address"] = $device_mac_address;
+	$device["device_address"] = $device_address;
 	$device["device_lines"] = $device_lines;
 	$device["device_keys"] = $device_keys;
 	$device["device_settings"] = $device_settings;
@@ -170,11 +183,8 @@
 
 //copy the device
 	if ($save) {
-		$database = new database;
-		$database->app_name = 'devices';
-		$database->app_uuid = '4efa1a1a-32e7-bf83-534b-6c8299958a8e';
 		$database->save($array);
-		$response = $database->message;
+		//$response = $database->message;
 		message::add($text['message-copy']);
 	}
 

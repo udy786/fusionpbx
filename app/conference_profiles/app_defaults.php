@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2016
+	Portions created by the Initial Developer are Copyright (C) 2016 - 2021
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -28,14 +28,13 @@
 
 		//add the music_on_hold list to the database
 		$sql = "select count(*) from v_conference_profiles; ";
-		$database = new database;
 		$num_rows = $database->select($sql, null, 'column');
 		if ($num_rows == 0) {
 
 			//set the directory
-				$xml_dir = $_SESSION["switch"]["conf"]["dir"].'/autoload_configs';
+				$xml_dir = $settings->get('switch','conf').'/autoload_configs';
 				$xml_file = $xml_dir."/conference.conf";
-				$xml_file_alt = $_SERVER["DOCUMENT_ROOT"].'/'.PROJECT_PATH.'/resources/templates/conf/autoload_configs/conference.conf';
+				$xml_file_alt = dirname(__DIR__, 2).'/'.PROJECT_PATH.'/app/switch/resources/conf/autoload_configs/conference.conf';
 
 			//rename the file
 				if (file_exists($xml_dir.'/conference.conf.xml.noload')) {
@@ -66,13 +65,10 @@
 						$array['conference_profiles'][0]['profile_name'] = $profile_name;
 						$array['conference_profiles'][0]['profile_enabled'] = 'true';
 
-						$p = new permissions;
+						$p = permissions::new();
 						$p->add('conference_profile_add', 'temp');
 
-						$database = new database;
-						$database->app_name = 'conference_profiles';
-						$database->app_uuid = 'c33e2c2a-847f-44c1-8c0d-310df5d65ba9';
-						$database->save($array);
+						$database->save($array, false);
 						unset($array);
 
 						$p->delete('conference_profile_add', 'temp');
@@ -83,7 +79,7 @@
 								//print_r($p);
 								$profile_param_name = $p['@attributes']['name'];
 								$profile_param_value = $p['@attributes']['value'];
-								$profile_param_enabled = 'true';
+								$profile_param_enabled = true;
 
 							//add the coference profile params
 								$conference_profile_param_uuid = uuid();
@@ -93,13 +89,10 @@
 								$array['conference_profile_params'][0]['profile_param_value'] = $profile_param_value;
 								$array['conference_profile_params'][0]['profile_param_enabled'] = $profile_param_enabled;
 
-								$p = new permissions;
+								$p = permissions::new();
 								$p->add('conference_profile_param_add', 'temp');
 
-								$database = new database;
-								$database->app_name = 'conference_profiles';
-								$database->app_uuid = 'c33e2c2a-847f-44c1-8c0d-310df5d65ba9';
-								$database->save($array);
+								$database->save($array, false);
 								unset($array);
 
 								$p->delete('conference_profile_param_add', 'temp');

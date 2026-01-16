@@ -25,7 +25,7 @@ In addition to providing all of the usual PBX functionality, FusionPBX allows yo
 Software Requirements
 --------------------------------------
 
-- FusionPBX will run on Debian 9 & 10, Ubuntu 18.04 LTS, FreeBSD 10 & 11, CentOS, and more.
+- FusionPBX will run on Debian, Ubuntu LTS, FreeBSD, CentOS, and more.
 - [FusionPBX Installer](https://www.fusionpbx.com/download.php)
 
 How to Install FusionPBX
@@ -58,7 +58,7 @@ wget -O - https://raw.githubusercontent.com/fusionpbx/fusionpbx-install.sh/maste
 cd /usr/src/fusionpbx-install.sh/centos && ./install.sh
 ```
 
-This install script is designed to be an fast, simple, and in a modular way to install FusionPBX. Start with a minimal install of Debian 10 with SSH enabled. Run the following commands under root. The script installs FusionPBX, FreeSWITCH release package and its dependencies, IPTables, Fail2ban, NGINX, PHP FPM and PostgreSQL.
+This install script is designed to be an fast, simple, and in a modular way to install FusionPBX. Start with a minimal install with SSH enabled. Run the following commands under root. The script installs FusionPBX, FreeSWITCH release package and its dependencies, IPTables, Fail2ban, NGINX, PHP FPM and PostgreSQL.
 
 Some installations require special considerations. Visit https://github.com/fusionpbx/fusionpbx-install.sh readme section for more details.
 
@@ -122,7 +122,7 @@ Membership Levels
 Green Level
 -------------
 
-<a href="url"><img src="https://raw.githubusercontent.com/Len-PGH/fusionpbx-docs/29d150e291f3f76199402d4eaee39ca501ccf1fa/source/_static/images/fusionpbx_member_emblem_md_green.png" align="center" height="350" width="250" ></a>
+<a href="url"><img src="https://raw.githubusercontent.com/fusionpbx/fusionpbx-docs/29d150e291f3f76199402d4eaee39ca501ccf1fa/source/_static/images/fusionpbx_member_emblem_md_green.png" align="center" height="350" width="250" ></a>
 
 
 The **Green** level Membership allows one individual access to all the following benefits. Some benefits are described in detail in the Membership Benefits section below. FusionPBX is critical to your business, so becoming a Member is a crucial step in protecting your investment.
@@ -144,7 +144,7 @@ The **Green** level Membership allows one individual access to all the following
 Blue Level
 ------------
 
-<a href="url"><img src="https://raw.githubusercontent.com/Len-PGH/fusionpbx-docs/master/source/_static/images/fusionpbx_member_emblem_xl_blue.png" align="center" height="350" width="250" ></a>
+<a href="url"><img src="https://raw.githubusercontent.com/fusionpbx/fusionpbx-docs/master/source/_static/images/fusionpbx_member_emblem_xl_blue.png" align="center" height="350" width="250" ></a>
 
 The Blue level Membership allows one individual access to the Green level benefits, plus includes OVER AN HOUR of Official Support each month. FusionPBX is critical component of your business, so access to support when you need it is crucial.
 
@@ -165,7 +165,7 @@ The Blue level Membership allows one individual access to the Green level benefi
 Purple Level
 -------------
 
-<a href="url"><img src="https://raw.githubusercontent.com/Len-PGH/fusionpbx-docs/29d150e291f3f76199402d4eaee39ca501ccf1fa/source/_static/images/fusionpbx_member_emblem_md_purple.png" align="center" height="350" width="250" ></a>
+<a href="url"><img src="https://raw.githubusercontent.com/fusionpbx/fusionpbx-docs/29d150e291f3f76199402d4eaee39ca501ccf1fa/source/_static/images/fusionpbx_member_emblem_md_purple.png" align="center" height="350" width="250" ></a>
 
 The **Purple** level Membership allows one individual access to the Green level benefits, plus includes up to THREE (3) HOURS of Official Support each month, and the use† of the advanced FusionPBX Call Center applications.
 
@@ -193,7 +193,7 @@ The **Purple** level Membership allows one individual access to the Green level 
 Gold Level
 -------------
 
-<a href="url"><img src="https://github.com/Len-PGH/fusionpbx-docs/blob/29d150e291f3f76199402d4eaee39ca501ccf1fa/source/_static/images/fusionpbx_member_emblem_md_gold.png" align="center" height="350" width="250" ></a>
+<a href="url"><img src="https://github.com/fusionpbx/fusionpbx-docs/blob/29d150e291f3f76199402d4eaee39ca501ccf1fa/source/_static/images/fusionpbx_member_emblem_md_gold.png" align="center" height="350" width="250" ></a>
 
 The **Gold** level Membership includes all the benefits of the Green and Purple membership levels, plus access for up to three (3) employees from your organization, up to SIX (6) HOURS of Official Support each month, and access to the FusionPBX REST API.
 

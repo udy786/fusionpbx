@@ -24,16 +24,12 @@
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	include "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('xml_cdr_statistics')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('xml_cdr_statistics')) {
 		echo "access denied";
 		exit;
 	}

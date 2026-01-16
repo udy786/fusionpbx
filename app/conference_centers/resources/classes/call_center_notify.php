@@ -24,39 +24,47 @@
 	Mark J Crane <markjcrane@fusionpbx.com>
 	KonradSC <konrd@yahoo.com>
 */
-include "root.php";
 
 //define the blf_notify class
-	class call_center_notify {
+class call_center_notify {
 
-		public $debug;
-		public $domain_name;
-		public $agent_name;
-		public $answer_state;
-		public $agent_uuid;
+	public $debug;
+	public $domain_name;
+	public $agent_name;
+	public $answer_state;
+	public $agent_uuid;
 
-		//feature_event method
-		public function send_call_center_notify() {
+	//feature_event method
 
-				$fp = event_socket_create($_SESSION['event_socket_ip_address'], $_SESSION['event_socket_port'], $_SESSION['event_socket_password']);
-				if ($fp) {
-					//send the event
-						$event = "sendevent PRESENCE_IN\n";
-						$event .= "proto: agent\n";
-						$event .= "event_type: presence\n";
-						$event .= "alt_event_type: dialog\n";
-						$event .= "Presence-Call-Direction: outbound\n";
-						$event .= "state: Active (1 waiting)\n";
-						$event .= "from: agent+".$this->agent_name."@".$this->domain_name."\n";
-						$event .= "login: agent+".$this->agent_name."@".$this->domain_name."\n";
-						$event .= "unique-id: ".$this->agent_uuid."\n";
-						$event .= "answer-state: ".$this->answer_state."\n";
-						event_socket_request($fp, $event);
-						//echo $event."<br />";
-					fclose($fp);
-				}
-		} //function
+	/**
+	 * Sends a presence notification to the call center.
+	 *
+	 * This method creates an event socket connection and sends a PRESENCE_IN event
+	 * if the connection is established. The event contains information about the agent's
+	 * presence, including their name, domain, unique ID, and answer state.
+	 *
+	 * @return boolean True if the event was successfully sent, false otherwise.
+	 */
+	public function send_call_center_notify() {
 
-	} //class
+		$esl = event_socket::create();
+		if ($esl->is_connected()) {
+			//send the event
+			$event = "sendevent PRESENCE_IN\n";
+			$event .= "proto: agent\n";
+			$event .= "event_type: presence\n";
+			$event .= "alt_event_type: dialog\n";
+			$event .= "Presence-Call-Direction: outbound\n";
+			$event .= "state: Active (1 waiting)\n";
+			$event .= "from: agent+" . $this->agent_name . "@" . $this->domain_name . "\n";
+			$event .= "login: agent+" . $this->agent_name . "@" . $this->domain_name . "\n";
+			$event .= "unique-id: " . $this->agent_uuid . "\n";
+			$event .= "answer-state: " . $this->answer_state . "\n";
+			$esl->request('api ' . $event);
+			//echo $event."<br />";
+		}
+	} //function
+
+} //class
 
 ?>

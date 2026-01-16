@@ -24,17 +24,13 @@
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	require_once "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 	require_once "resources/paging.php";
 
 //check permissions
-	if (permission_exists('extension_export')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('extension_export')) {
 		echo "access denied";
 		exit;
 	}
@@ -97,6 +93,13 @@
 	$available_columns[] = 'forward_user_not_registered_enabled';
 
 //define the functions
+	/**
+	 * Converts a multi-dimensional array into a CSV string.
+	 *
+	 * @param array &$array The input array to be converted. It is expected that all rows of the array have the same number of columns.
+	 *
+	 * @return string|null The CSV string representation of the input array, or null if the input array is empty.
+	 */
 	function array2csv(array &$array) {
 		if (count($array) == 0) {
 			return null;
@@ -111,6 +114,11 @@
 		return ob_get_clean();
 	}
 
+	/**
+	 * Sets the headers for a file download.
+	 *
+	 * @param string $filename The name of the file to be downloaded.
+	 */
 	function download_send_headers($filename) {
 		// disable caching
 		$now = gmdate("D, d M Y H:i:s");
@@ -129,7 +137,7 @@
 	}
 
 //get the extensions from the database and send them as output
-	if (is_array($_REQUEST["column_group"]) && @sizeof($_REQUEST["column_group"]) != 0) {
+	if (!empty($_REQUEST["column_group"]) && is_array($_REQUEST["column_group"]) && @sizeof($_REQUEST["column_group"]) != 0) {
 
 		//validate the token
 			$token = new token;
@@ -149,7 +157,6 @@
 			$sql = "select ".implode(', ', $selected_columns)." from v_extensions ";
 			$sql .= "where domain_uuid = :domain_uuid ";
 			$parameters['domain_uuid'] = $domain_uuid;
-			$database = new database;
 			$extensions = $database->select($sql, $parameters, 'all');
 			unset($sql, $parameters, $selected_columns);
 
@@ -173,28 +180,29 @@
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'><b>".$text['header-extension_export']."</b></div>\n";
 	echo "	<div class='actions'>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','link'=>'extensions.php']);
-	echo button::create(['type'=>'submit','label'=>$text['button-export'],'icon'=>$_SESSION['theme']['button_icon_export'],'id'=>'btn_save','style'=>'margin-left: 15px;']);
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','link'=>'extensions.php']);
+	echo button::create(['type'=>'submit','label'=>$text['button-export'],'icon'=>$settings->get('theme', 'button_icon_export'),'id'=>'btn_save','style'=>'margin-left: 15px;']);
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
 
 	echo $text['description-extension_export'];
 	echo "<br /><br />\n";
-	
+
+	echo "<div class='card'>\n";
 	echo "<table class='list'>\n";
 	echo "<tr class='list-header'>\n";
 	echo "	<th class='checkbox'>\n";
-	echo "		<input type='checkbox' id='checkbox_all' name='checkbox_all' onclick='list_all_toggle();' ".($available_columns ?: "style='visibility: hidden;'").">\n";
+	echo "		<input type='checkbox' id='checkbox_all' name='checkbox_all' onclick='list_all_toggle();' ".(empty($available_columns) ? "style='visibility: hidden;'" : null).">\n";
 	echo "	</th>\n";
 	echo "	<th>".$text['label-column_name']."</th>\n";
 	echo "</tr>\n";
 
-	if (is_array($available_columns) && @sizeof($available_columns) != 0) {
+	if (!empty($available_columns) && is_array($available_columns) && @sizeof($available_columns) != 0) {
 		$x = 0;
 		foreach ($available_columns as $column_name) {
 			$list_row_onclick = "if (!this.checked) { document.getElementById('checkbox_all').checked = false; }";
-			echo "<tr class='list-row' href='".$list_row_url."'>\n";
+			echo "<tr class='list-row'>\n";
 			echo "	<td class='checkbox'>\n";
 			echo "		<input type='checkbox' name='column_group[]' id='checkbox_".$x."' value=\"".$column_name."\" onclick=\"".$list_row_onclick."\">\n";
 			echo "	</td>\n";
@@ -205,6 +213,7 @@
 	}
 
 	echo "</table>\n";
+	echo "</div>\n";
 	echo "<br />\n";
 	echo "<input type='hidden' name='".$token['name']."' value='".$token['hash']."'>\n";
 	echo "</form>\n";

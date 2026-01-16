@@ -17,120 +17,147 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2021
+	Portions created by the Initial Developer are Copyright (C) 2008-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//ensure that $_SERVER["DOCUMENT_ROOT"] is defined
-	include "root.php";
-
-//find and include the config.php file
-    $config_exists = false;
-	if (file_exists("/etc/fusionpbx/config.php")) {
-		$config_exists = true;
-		include "/etc/fusionpbx/config.php";
-	}
-	elseif (file_exists("/usr/local/etc/fusionpbx/config.php")) {
-		$config_exists = true;
-		include "/usr/local/etc/fusionpbx/config.php";
-	}
-	elseif (file_exists($_SERVER["DOCUMENT_ROOT"].PROJECT_PATH."/resources/config.php")) {
-		$config_exists = true;
-		include "resources/config.php";
-	}
-
 //class auto loader
 	if (!class_exists('auto_loader')) {
-		class auto_loader {
-			public function __construct() {
-				spl_autoload_register(array($this, 'loader'));
-			}
-			private function loader($class_name) {
-				//set the default value
-					$class_found = false;
-
-				//sanitize the class name
-					$class_name = preg_replace('[^a-zA-Z0-9_]', '', $class_name);
-
-				//save the log to the syslog server
-					if ($_REQUEST['debug'] == 'true') {
-						openlog("XML CDR", LOG_PID | LOG_PERROR, LOG_LOCAL0);
-					}
-
-				//find the most relevant class name
-					if (!$class_found && file_exists($_SERVER["DOCUMENT_ROOT"] . PROJECT_PATH . "/resources/classes/".$class_name.".php")) {
-						//first priority
-						$path = $_SERVER["DOCUMENT_ROOT"] . PROJECT_PATH . "/resources/classes/".$class_name.".php";
-						$class_found = true;
-						if ($_REQUEST['debug'] == 'true') {
-							syslog(LOG_WARNING, "[php][autoloader] name: ".$class_name.", path: ".$path.", line: ".__line__);
-						}
-						include $path;
-					}
-					elseif (!$class_found && file_exists($_SERVER["DOCUMENT_ROOT"] . PROJECT_PATH . "/core/".$class_name."/resources/classes/".$class_name.".php")) {
-						//second priority
-						$path = $_SERVER["DOCUMENT_ROOT"] . PROJECT_PATH . "/core/".$class_name."/resources/classes/".$class_name.".php";
-						$class_found = true;
-						if ($_REQUEST['debug'] == 'true') {
-							syslog(LOG_WARNING, "[php][autoloader] name: ".$class_name.", path: ".$path.", line: ".__line__);
-						}
-						include $path;
-					}
-					elseif (!$class_found && file_exists($_SERVER["DOCUMENT_ROOT"] . PROJECT_PATH . "/app/".$class_name."/resources/classes/".$class_name.".php")) {
-						//third priority
-						$path = $_SERVER["DOCUMENT_ROOT"] . PROJECT_PATH . "/app/".$class_name."/resources/classes/".$class_name.".php";
-						$class_found = true;
-						if ($_REQUEST['debug'] == 'true') {
-							syslog(LOG_WARNING, "[php][autoloader] name: ".$class_name.", path: ".$path.", line: ".__line__);
-						}
-						include $path;
-					}
-
-				//use glob for a more exensive search for the classes (note: GLOB_BRACE doesn't work on some systems)
-					if (!$class_found && !class_exists($class_name)) {
-						//fourth priority
-						$results_1 = glob($_SERVER["DOCUMENT_ROOT"] . PROJECT_PATH . "/*/*/resources/classes/".$class_name.".php");
-						$results_2 = glob($_SERVER["DOCUMENT_ROOT"] . PROJECT_PATH . "/resources/classes/".$class_name.".php");
-						$results = array_merge((array)$results_1,(array)$results_2);
-						unset($results_1, $results_2);
-						foreach ($results as &$class_file) {
-							if (!$class_found) {
-								$class_found = true;
-								if ($_REQUEST['debug'] == 'true') {
-									syslog(LOG_WARNING, "[php][autoloader] name: ".$class_name.", path: ".$class_file.", line: ".__line__);
-								}
-								include $class_file;
-								break;
-							}
-						}
-						unset($results);
-					}
-
-				//save the log to the syslog server
-					if ($_REQUEST['debug'] == 'true') {
-						closelog();
-					}
-			}
-		}
+		require_once __DIR__ . "/classes/auto_loader.php";
+		$autoload = new auto_loader();
 	}
-	$autoload = new auto_loader();
 
-//additional includes
-	require_once "resources/php.php";
-	require_once "resources/functions.php";
-	if ($config_exists) {
-		require "resources/pdo.php";
-		if (file_exists($_SERVER["DOCUMENT_ROOT"] . PROJECT_PATH . "/resources/switch.php")) {
-			require_once "resources/switch.php";
-		}
+//load config file
+	global $config;
+	$config = config::load();
+
+//config.conf file not found re-direct the request to the install
+	if ($config->is_empty()) {
+		header("Location: /core/install/install.php");
+		exit;
+	}
+
+//compatibility settings - planned to deprecate
+	global $conf, $db_type, $db_host, $db_port, $db_name, $db_username, $db_password;
+	$conf = $config->configuration();
+	$db_type = $config->get('database.0.type');
+	$db_host = $config->get('database.0.host');
+	$db_port = $config->get('database.0.port');
+	$db_name = $config->get('database.0.name');
+	$db_username = $config->get('database.0.username');
+	$db_password = $config->get('database.0.password');
+
+//set the error reporting
+	ini_set('display_errors', '1');
+	$error_reporting_scope = $config->get('error.reporting', 'user');
+	switch ($error_reporting_scope) {
+	case 'user':
+		error_reporting(E_ALL ^ E_NOTICE ^ E_WARNING ^ E_DEPRECATED);
+		break;
+	case 'dev':
+		error_reporting(E_ALL ^ E_NOTICE);
+		break;
+	case 'all':
+		error_reporting(E_ALL);
+		break;
+	default:
+		error_reporting(E_ALL ^ E_NOTICE ^ E_WARNING ^ E_DEPRECATED);
+	}
+
+//get the database connection settings
+	//$db_type = $settings['database']['type'];
+	//$db_host = $settings['database']['host'];
+	//$db_port = $settings['database']['port'];
+	//$db_name = $settings['database']['name'];
+	//$db_username = $settings['database']['username'];
+	//$db_password = $settings['database']['password'];
+
+//debug info
+	//echo "Include Path: ".get_include_path()."\n";
+	//echo "Document Root: ".dirname(__DIR__, 1)."\n";
+	//echo "Project Root: ".dirname(__DIR__, 1)."\n";
+
+
+//include global functions
+	require_once __DIR__ . "/functions.php";
+
+//connect to the database
+	global $database;
+	$database = database::new(['config' => $config]);
+
+//security headers
+	if (!defined('STDIN') && session_status() === PHP_SESSION_NONE) {
+		header("X-Frame-Options: SAMEORIGIN");
+		header("Content-Security-Policy: frame-ancestors 'self';");
+		header("X-Content-Type-Options: nosniff");
+		header("Referrer-Policy: strict-origin-when-cross-origin");
+		//header("Strict-Transport-Security: max-age=63072000; includeSubDomains; preload");
+	}
+
+//start the session if not using the command line
+	global $no_session;
+	if (!defined('STDIN') && empty($no_session) && session_status() === PHP_SESSION_NONE) {
+		ini_set('session.cookie_httponly', !isset($conf['session.cookie_httponly']) ? 'true' : (!empty($config->get('session.cookie_httponly')) ? 'true' : 'false'));
+		ini_set('session.cookie_secure', !isset($conf['session.cookie_secure']) ? 'true' : (!empty($config->get('session.cookie_secure')) ? 'true' : 'false'));
+		ini_set('session.cookie_samesite', $config->get('session.cookie_samesite', 'Lax'));
+		session_start();
+	}
+
+//load settings
+	global $settings;
+	$settings = new settings(['database' => $database, 'domain_uuid' => $_SESSION['domain_uuid'] ?? '', 'user_uuid' => $_SESSION['user_uuid'] ?? '']);
+
+//check if the cidr range is valid
+	global $no_cidr;
+	if (!defined('STDIN') && empty($no_cidr)) {
+		require_once __DIR__ . '/cidr.php';
+	}
+
+//include switch functions when available
+	if (file_exists(__DIR__ . '/switch.php')) {
+		require_once __DIR__ . '/switch.php';
 	}
 
 //change language on the fly - for translate tool (if available)
-	if (isset($_REQUEST['view_lang_code']) && ($_REQUEST['view_lang_code']) != '') {
-		$_SESSION['domain']['language']['code'] = $_REQUEST['view_lang_code'];
-	}
+	//if (!defined('STDIN') && isset($_REQUEST['view_lang_code']) && ($_REQUEST['view_lang_code']) != '') {
+	//	$_SESSION['domain']['language']['en-us'] = $_REQUEST['view_lang_code'];
+	//}
 
-?>
+//change the domain
+	if (!empty($_GET["domain_uuid"]) && is_uuid($_GET["domain_uuid"]) && !empty($_GET["domain_change"]) && $_GET["domain_change"] == "true" && permission_exists('domain_select')) {
+
+		//include domains
+			if (file_exists(dirname(__DIR__, 1)."/app/domains/app_config.php") && !permission_exists('domain_all')) {
+				include_once "app/domains/domains.php";
+			}
+
+		//update the domain session variables
+			$domain_uuid = $_GET["domain_uuid"];
+			$_SESSION["previous_domain_uuid"] = $_SESSION['domain_uuid'];
+			$_SESSION['domain_uuid'] = $domain_uuid;
+
+		//get the domain details
+			$sql = "select * from v_domains ";
+			$sql .= "order by domain_name asc ";
+			$domains = $database->select($sql, null, 'all');
+			if (!empty($domains)) {
+				foreach($domains as $row) {
+					$_SESSION['domains'][$row['domain_uuid']] = $row;
+				}
+			}
+			unset($sql, $domains);
+
+		//update the domain session variables
+			$_SESSION["domain_name"] = $_SESSION['domains'][$domain_uuid]['domain_name'];
+			$_SESSION["context"] = $_SESSION["domain_name"];
+
+		//clear the extension array so that it is regenerated for the selected domain
+			unset($_SESSION['extension_array']);
+
+		//set the setting arrays
+			$domain = new domains();
+			$domain->set();
+	}

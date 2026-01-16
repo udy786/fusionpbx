@@ -17,20 +17,37 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2019
+	Portions created by the Initial Developer are Copyright (C) 2022
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	include "root.php";
+//set the include path
+	$document_root = dirname(__DIR__, 2);
+	set_include_path($document_root);
+
+//defined for backwards compatibility
+	define("PROJECT_PATH", '');
+
+//includes files
 	require_once "resources/functions.php";
+
+//add the auto loader
+	require_once "resources/classes/auto_loader.php";
+	$autoload = new auto_loader();
 
 //include required classes
 	require_once "resources/classes/text.php";
 	require_once "resources/classes/template.php";
+	require_once "core/install/resources/classes/install.php";
+
+//start the session before text object stores values in session
+	ini_set("session.cookie_httponly", 'true');
+	ini_set("session.cookie_secure", 'false');
+	ini_set("session.cookie_samesite", 'Lax');
+	session_start();
 
 //add multi-lingual support
 	$language = new text;
@@ -38,10 +55,6 @@
 
 //set debug to true or false
 	$debug = false;
-
-//start the session
-	//ini_set("session.cookie_httponly", True);
-	session_start();
 
 //set the default domain_uuid
 	$domain_uuid = uuid();
@@ -52,12 +65,8 @@
 
 //error reporting
 	ini_set('display_errors', '1');
+	error_reporting (E_ALL ^ E_NOTICE); // Report warnings
 	//error_reporting (E_ALL); // Report everything
-
-//error reporting
-	ini_set('display_errors', '1');
-	//error_reporting (E_ALL); // Report everything
-	error_reporting (E_ALL ^ E_NOTICE); // Report everything
 	//error_reporting(E_ALL ^ E_NOTICE ^ E_WARNING ); //hide notices and warnings
 
 //set the default time zone
@@ -65,54 +74,77 @@
 
 //if the config file exists then disable the install page
 	$config_exists = false;
-	if (file_exists($_SERVER['DOCUMENT_ROOT'].PROJECT_PATH."/resources/config.php")) {
+	if (file_exists("/usr/local/etc/fusionpbx/config.conf")) {
+		//bsd
+		$config_path = "/usr/local/etc/fusionpbx";
 		$config_exists = true;
-	} elseif (file_exists("/etc/fusionpbx/config.php")) {
+	}
+	elseif (file_exists("/etc/fusionpbx/config.conf")) {
 		//linux
+		$config_path = "/etc/fusionpbx";
 		$config_exists = true;
-	} elseif (file_exists("/usr/local/etc/fusionpbx/config.php")) {
+	}
+	elseif (file_exists(getenv('SystemDrive') . DIRECTORY_SEPARATOR . 'ProgramData' . DIRECTORY_SEPARATOR . 'fusionpbx' . DIRECTORY_SEPARATOR . 'config.conf')) {
+		//windows
+		$config_path = getenv('SystemDrive') . DIRECTORY_SEPARATOR . 'ProgramData' . DIRECTORY_SEPARATOR . 'fusionpbx' . DIRECTORY_SEPARATOR;
 		$config_exists = true;
 	}
 	if ($config_exists) {
-		$msg .= "Already Installed";
-		header("Location: ".PROJECT_PATH."/index.php?msg=".urlencode($msg));
+		//redirect with message
+		header("Location: ".PROJECT_PATH."/?msg=".urlencode("Already Installed"));
 		exit;
 	}
 
-//process and save the data
-	if (count($_POST) > 0) {
-		foreach($_POST as $key => $value) {
-			//$_SESSION['install'][$key] = $value;
+//if the config.php exists then use it to create the config.conf file
+	if (!$config_exists) {
+		if (isset($config_path)) {
+			if (is_writable($config_path)) {
+				//include the config.php file
+				include $config_path.'/config.php';
 
-			if ($key == 'admin_username') {
-				$_SESSION['install'][$key] = $value;
+				//build the config file
+				$install = new install;
+				$install->database_host = $db_host;
+				$install->database_port = $db_port;
+				$install->database_name = $db_name;
+				$install->database_username = $db_username;
+				$install->database_password = $db_password;
+				$install->config();
+
+				//give time for the config file to be saved
+				sleep(1);
+
+				//redirect the user
+				header("Location: /");
+				exit;
 			}
-			if ($key == 'admin_password') {
-				$_SESSION['install'][$key] = $value;
+			else {
+				//config directory is not writable run commands as root
+				echo "Please run the following commands as root.<br /><br />\n";
+				echo "cd ".$document_root."<br />\n";
+				echo "php ".$document_root."/core/upgrade/upgrade.php<br />\n";
+				unset($config_path);
+				exit;
 			}
-			if ($key == 'domain_name') {
-				$_SESSION['install'][$key] = $value;
-			}
-			if ($key == 'database_host') {
-				$_SESSION['install'][$key] = $value;
-			}
-			if ($key == 'database_port') {
-				$_SESSION['install'][$key] = $value;
-			}
-			if ($key == 'database_name') {
-				$_SESSION['install'][$key] = $value;
-			}
-			if ($key == 'database_username') {
-				$_SESSION['install'][$key] = $value;
-			}
-			if ($key == 'database_password') {
-				$_SESSION['install'][$key] = $value;
-			}
-			//echo "if (\$key == '$key') {\n";
-			//echo "	\$_SESSION['install'][\$key] = \$value;\n";
-			//echo "}\n";
 		}
-		if ($_REQUEST["step"] == "install") {
+	}
+
+//process and save the data
+	if (!empty($_POST)) {
+		foreach($_POST as $key => $value) {
+			switch($key) {
+				case 'admin_username':
+				case 'admin_password':
+				case 'domain_name':
+				case 'database_host':
+				case 'database_port':
+				case 'database_name':
+				case 'database_username':
+				case 'database_password':
+					$_SESSION['install'][$key] = $value;
+			}
+		}
+		if (!empty($_REQUEST["step"]) && $_REQUEST["step"] == "install") {
 			//show debug information
 			if ($debug) {
 				echo "<pre>\n";
@@ -121,71 +153,29 @@
 				exit;
 			}
 
-			//add the config.php
-			$config = "<?php\n";
-			$config .= "\n";
-			$config .= "/*\n";
-			$config .= "FusionPBX\n";
-			$config .= "Version: MPL 1.1\n";
-			$config .= "\n";
-			$config .= "The contents of this file are subject to the Mozilla Public License Version\n";
-			$config .= "1.1 (the \"License\"); you may not use this file except in compliance with\n";
-			$config .= "the License. You may obtain a copy of the License at\n";
-			$config .= "http://www.mozilla.org/MPL/\n";
-			$config .= "\n";
-			$config .= "Software distributed under the License is distributed on an \"AS IS\" basis,\n";
-			$config .= "WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License\n";
-			$config .= "for the specific language governing rights and limitations under the\n";
-			$config .= "License.\n";
-			$config .= "\n";
-			$config .= "The Original Code is FusionPBX\n";
-			$config .= "	Copyright (C) 2008 - 2019\n";
-			$config .= "	Mark J Crane <markjcrane@fusionpbx.com>\n";
-			$config .= "	All rights reserved.\n";
-			$config .= "*/\n";
-			$config .= "\n";
-			$config .= "//-----------------------------------------------------\n";
-			$config .= "// settings:\n";
-			$config .= "//-----------------------------------------------------\n";
-			$config .= "\n";
-			$config .= "	//set the database type\n";
-			$config .= "		\$db_type = 'pgsql'; //sqlite, mysql, pgsql, others with a manually created PDO connection\n";
-			$config .= "\n";
-			$config .= "//database connection information\n";
-			$config .= "		\$db_host = '".$_SESSION['install']['database_host']."'; //set the host only if the database is not local\n";
-			$config .= "		\$db_port = '".$_SESSION['install']['database_port']."';\n";
-			$config .= "		\$db_name = '".$_SESSION['install']['database_name']."';\n";
-			$config .= "		\$db_username = '".$_SESSION['install']['database_username']."';\n";
-			$config .= "		\$db_password = '".$_SESSION['install']['database_password']."';\n";
-			$config .= "\n";
-			$config .= "	//show errors\n";
-			$config .= "		ini_set('display_errors', '1');\n";
-			$config .= "		//error_reporting (E_ALL); // Report everything\n";
-			$config .= "		//error_reporting (E_ALL ^ E_NOTICE); // Report everything\n";
-			$config .= "		error_reporting(E_ALL ^ E_NOTICE ^ E_WARNING ); //hide notices and warnings";
-			$config .= "\n";
-			$config .= "?>";
-			if (is_dir("/etc/fusionpbx")){
-				$config_path = "/etc/fusionpbx/config.php";
-			} elseif (is_dir("/usr/local/etc/fusionpbx")){
-				$config_path = "/usr/local/etc/fusionpbx/config.php";
+			//build the config file
+			$install = new install;
+			$install->database_host = $_SESSION['install']['database_host'];
+			$install->database_port = $_SESSION['install']['database_port'];
+			$install->database_name = $_SESSION['install']['database_name'];
+			$install->database_username = $_SESSION['install']['database_username'];
+			$install->database_password = $_SESSION['install']['database_password'];
+			$result = $install->config();
+
+			//end the script if the config path is not set
+			if (!$result) {
+				echo $install->message;
+				exit;
 			}
-			elseif (is_dir($_SERVER['DOCUMENT_ROOT'].PROJECT_PATH."/resources")) {
-				$config_path = $_SERVER["DOCUMENT_ROOT"].PROJECT_PATH."/resources/config.php";
-			}
-			else {
-				$config_path = $_SERVER["DOCUMENT_ROOT"].PROJECT_PATH."/resources/config.php";
-			}
-			$fout = fopen($config_path,"w");
-			fwrite($fout, $config);
-			unset($config);
-			fclose($fout);
+
+			//wait for the config to be saved to the file system
+			sleep(1);
 
 			//add the database schema
-			$output = shell_exec('cd '.$_SERVER["DOCUMENT_ROOT"].' && php /var/www/fusionpbx/core/upgrade/upgrade_schema.php');
+			$output = shell_exec('cd '.dirname(__DIR__, 2).' && php /var/www/fusionpbx/core/upgrade/upgrade_schema.php');
 
-			//includes - this includes the config.php
-			require_once "resources/require.php";
+			//connect to the database
+			$database = new database;
 
 			//get the domain name
 			$domain_name = $_SESSION['install']['domain_name'];
@@ -193,13 +183,13 @@
 			//check to see if the domain name exists if it does update the domain_uuid
 			$sql = "select domain_uuid from v_domains ";
 			$sql .= "where domain_name = :domain_name ";
+			$parameters = [];
 			$parameters['domain_name'] = $domain_name;
-			$database = new database;
 			$domain_uuid = $database->select($sql, $parameters, 'column');
 			unset($parameters);
 
 			//set domain and user_uuid to true or false
-			if ($domain_uuid == null) {
+			if (empty($domain_uuid)) {
 				$domain_uuid = uuid();
 				$domain_exists = false;
 			}
@@ -207,10 +197,10 @@
 				$domain_exists = true;
 			}
 
-			//if the domain name does not exist then add the domain name
+			//if the domain name does not exist, then add the domain name
 			if (!$domain_exists) {
 				//add the domain permission
-				$p = new permissions;
+				$p = permissions::new();
 				$p->add("domain_add", "temp");
 
 				//prepare the array
@@ -219,28 +209,26 @@
 				$array['domains'][0]['domain_enabled'] = 'true';
 
 				//save to the user data
-				$database = new database;
-				$database->app_name = 'domains';
-				$database->app_uuid = 'b31e723a-bf70-670c-a49b-470d2a232f71';
-				$database->uuid($domain_uuid);
 				$database->save($array);
-				$message = $database->message;
+				//$message = $database->message;
 				unset($array);
 
 				//remove the temporary permission
 				$p->delete("domain_add", "temp");
 			}
 
-			//set the session domain id and name
+			//set the session domain ID and name
 			$_SESSION['domain_uuid'] = $domain_uuid;
 			$_SESSION['domain_name'] = $domain_name;
 
 			//app defaults
-			$output = shell_exec('cd '.$_SERVER["DOCUMENT_ROOT"].' && php /var/www/fusionpbx/core/upgrade/upgrade_domains.php');
+			$output = shell_exec('cd '.dirname(__DIR__, 2).' && php /var/www/fusionpbx/core/upgrade/upgrade_domains.php');
 
 			//prepare the user settings
 			$admin_username = $_SESSION['install']['admin_username'];
 			$admin_password = $_SESSION['install']['admin_password'];
+
+			//prepare the password hash
 			$user_salt = uuid();
 			$password_hash = md5($user_salt . $admin_password);
 
@@ -250,8 +238,6 @@
 			$sql .= "and username = :username ";
 			$parameters['domain_uuid'] = $domain_uuid;
 			$parameters['username'] = $admin_username;
-
-			$database = new database;
 			$user_uuid = $database->select($sql, $parameters, 'column');
 			unset($parameters);
 
@@ -271,12 +257,11 @@
 			$sql = "select group_uuid from v_groups ";
 			$sql .= "where group_name = :group_name ";
 			$parameters['group_name'] = 'superadmin';
-			$database = new database;
 			$group_uuid = $database->select($sql, $parameters, 'column');
 			unset($parameters);
 
 			//add the user permission
-			$p = new permissions;
+			$p = permissions::new();
 			$p->add("user_add", "temp");
 			$p->add("user_edit", "temp");
 			$p->add("user_group_add", "temp");
@@ -293,10 +278,6 @@
 			$array['user_groups'][0]['group_name'] = 'superadmin';
 			$array['user_groups'][0]['group_uuid'] = $group_uuid;
 			$array['user_groups'][0]['user_uuid'] = $user_uuid;
-			$database = new database;
-			$database->app_name = 'users';
-			$database->app_uuid = '112124b3-95c2-5352-7e9d-d14c0b88f207';
-			$database->uuid($user_uuid);
 			$database->save($array);
 			$message = $database->message;
 			unset($array);
@@ -319,35 +300,23 @@
 			}
 			*/
 
-			//update xml_cdr url, user and password in xml_cdr.conf.xml
-			if (!$domain_exists) {
-				if (file_exists($_SERVER["DOCUMENT_ROOT"].PROJECT_PATH."/app/xml_cdr")) {
-					xml_cdr_conf_xml();
-				}
-			}
-
 			//write the switch.conf.xml file
-			if (!$domain_exists) {
-				if (file_exists($switch_conf_dir)) {
-					switch_conf_xml();
-				}
+			if (!$domain_exists && file_exists($switch_conf_dir)) {
+				switch_conf_xml();
 			}
 
 			#app defaults
-			$output = shell_exec('cd '.$_SERVER["DOCUMENT_ROOT"].' && php /var/www/fusionpbx/core/upgrade/upgrade_domains.php');
+			$output = shell_exec('cd '.dirname(__DIR__, 2).' && php /var/www/fusionpbx/core/upgrade/upgrade_domains.php');
 
 			//install completed - prompt the user to login
 			header("Location: /logout.php");
 		}
 	}
 
-//set the max execution time to 1 hour
-	ini_set('max_execution_time',3600);
-
-//set a default template
-	$_SESSION['domain']['template']['name'] = 'default';
-	$_SESSION['theme']['menu_brand_image']['text'] = PROJECT_PATH.'/themes/default/images/logo.png';
-	$_SESSION['theme']['menu_brand_type']['text'] = 'image';
+//set a default step if not already set
+	if(empty($_REQUEST['step'])) {
+		$_REQUEST['step'] = '1';
+	}
 
 //save an install log if debug is true
 	//if ($debug) {
@@ -358,14 +327,11 @@
 	$domain_array = explode(":", $_SERVER["HTTP_HOST"]);
 	$domain_name = $domain_array[0];
 
-//temp directory
-	$_SESSION['server']['temp']['dir'] = '/tmp';
-
 //initialize a template object
 	$view = new template();
 	$view->engine = 'smarty';
-	$view->template_dir = $_SERVER["DOCUMENT_ROOT"].PROJECT_PATH.'/core/install/resources/views/';
-	$view->cache_dir = $_SESSION['server']['temp']['dir'];
+	$view->template_dir = dirname(__DIR__, 2).'/core/install/resources/views/';
+	$view->cache_dir = sys_get_temp_dir();
 	$view->init();
 
 //assign default values to the template
@@ -376,13 +342,11 @@
 	$view->assign("database_port", "5432");
 	$view->assign("database_name", "fusionpbx");
 	$view->assign("database_username", "fusionpbx");
+	$view->assign("database_password", "");
 
 //add translations
 	foreach($text as $key => $value) {
 		$view->assign(str_replace("-", "_", $key), $text[$key]);
-		//$view->assign("label_username", $text['label-username']);
-		//$view->assign("label_password", $text['label-password']);
-		//$view->assign("button_back", $text['button-back']);
 	}
 
 //debug information
@@ -396,10 +360,11 @@
 	//if ($_GET["step"] == "" || $_GET["step"] == "1") {
 	//	$content = $view->render('language.htm');
 	//}
-	if ($_REQUEST["step"] == "" || $_REQUEST["step"] == "1") {
+
+	if (!empty($_REQUEST["step"]) && $_REQUEST["step"] == "1") {
 		$content = $view->render('configuration.htm');
 	}
-	if ($_REQUEST["step"] == "2") {
+	if (!empty($_REQUEST["step"]) && $_REQUEST["step"] == "2") {
 		$content = $view->render('database.htm');
 	}
 	$view->assign("content", $content);

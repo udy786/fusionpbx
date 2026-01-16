@@ -17,23 +17,19 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2019
+	Portions created by the Initial Developer are Copyright (C) 2008-2024
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
 
-//includes
-	include "root.php";
-	require_once "resources/require.php";
+//includes files
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('device_profile_add')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('device_profile_add')) {
 		echo "access denied";
 		exit;
 	}
@@ -43,7 +39,7 @@
 	$text = $language->get();
 
 //set the http get/post variable(s) to a php variable
-	if (is_uuid($_REQUEST["id"])) {
+	if (!empty($_REQUEST["id"]) && is_uuid($_REQUEST["id"])) {
 		$device_profile_uuid = $_REQUEST["id"];
 	}
 
@@ -51,7 +47,6 @@
 	$sql = "select * from v_device_profiles ";
 	$sql .= "where device_profile_uuid = :device_profile_uuid ";
 	$parameters['device_profile_uuid'] = $device_profile_uuid;
-	$database = new database;
 	$device_profiles = $database->select($sql, $parameters);
 	unset($sql, $parameters);
 
@@ -67,7 +62,6 @@
 	$sql .= "else 100 end, ";
 	$sql .= "profile_key_id asc ";
 	$parameters['device_profile_uuid'] = $device_profile_uuid;
-	$database = new database;
 	$device_profile_keys = $database->select($sql, $parameters, 'all');
 	unset($sql, $parameters);
 
@@ -76,7 +70,6 @@
 	$sql .= "where device_profile_uuid = :device_profile_uuid ";
 	$sql .= "order by profile_setting_name asc ";
 	$parameters['device_profile_uuid'] = $device_profile_uuid;
-	$database = new database;
 	$device_profile_settings = $database->select($sql, $parameters, 'all');
 	unset($sql, $parameters);
 
@@ -118,9 +111,6 @@
 	}
 
 //copy the device
-	$database = new database;
-	$database->app_name = 'devices';
-	$database->app_uuid = '4efa1a1a-32e7-bf83-534b-6c8299958a8e';
 	$database->save($array);
 	unset($array);
 
